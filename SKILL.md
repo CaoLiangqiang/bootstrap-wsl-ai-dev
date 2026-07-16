@@ -1,6 +1,6 @@
 ---
 name: bootstrap-wsl-ai-dev
-description: Audit, clean, migrate, and bootstrap an AI development environment on WSL Ubuntu while reducing accidental dependence on Windows-installed tools. Use when Codex needs to identify Windows versus WSL command origins, remove Kimi/Trae or other AI-tool remnants, diagnose slow Git or package downloads, configure proxies, prepare Git/GitHub SSH, install Python/uv and Node/Corepack tooling, install Docker Engine in WSL, repair Docker daemon proxy failures, validate Codex or Claude CLI placement, or clean installation artifacts without deleting useful caches or credentials.
+description: Audit, clean, migrate, isolate, and bootstrap an AI development environment on WSL Ubuntu without accidental dependence on Windows-installed tools. Use when Codex needs to classify Windows versus WSL command origins, disable automatic Windows PATH import while preserving explicit interop, inventory or remove Windows AI tools, migrate Claude Code, OpenCode/oh-my-openagent, Codex, Kiro, Feishu/Lark, Node/Bun, or uv into WSL, validate configuration and authentication without exposing secrets, diagnose network or Docker issues, or clean installation artifacts without deleting useful caches or credentials.
 ---
 
 # Bootstrap WSL AI Development
@@ -15,6 +15,8 @@ Build a native WSL Ubuntu toolchain with an audit-first workflow. Treat Windows,
 - Confirm every deletion candidate by path, size, owner, command resolution, and replacement readiness. Preserve projects, SSH keys, auth files, active tool state, and caches that are valuable on a slow network.
 - Use official repositories and documentation for system packages and security-sensitive configuration.
 - Keep Windows writes targeted. Read registry values before editing them, preserve their value type, and never broadly rewrite PATH without showing the effect.
+- Treat PATH isolation and network configuration as independent decisions. Do not modify Clash, proxy, DNS, NAT, mirrored networking, or other network settings unless the user explicitly asks for network work.
+- Never copy personal settings, auth files, steering content, or session history into this repository. Record schemas, redacted examples, permission requirements, and validation commands instead.
 - Use apply_patch for files inside the working repository. For root-owned files, generate a small auditable script and ask the user to run it with sudo.
 
 ## Workflow
@@ -26,7 +28,7 @@ Record:
 - WSL distribution and version.
 - AI tools to keep on Windows.
 - AI tools to keep or install in WSL.
-- Whether Windows executables should remain callable from WSL.
+- Whether Windows executables should be imported into WSL PATH or remain callable only by explicit absolute path.
 - Current proxy product, scheme, host, and port without exposing credentials.
 - Preferred GitHub authentication method.
 
@@ -38,6 +40,10 @@ Run:
 
     bash scripts/audit-wsl-ai-env.sh
 
+For the Windows side, run from Windows PowerShell:
+
+    .\scripts\audit-windows-ai-tools.ps1
+
 Use command -v and type -a to classify each command:
 
 - /usr, /bin, /home, or a WSL-managed version directory: WSL-native.
@@ -48,7 +54,22 @@ If command output and the Windows registry disagree, treat the current WSL PATH 
 
 Read references/lessons.md when the audit produces contradictory results or when evaluating cleanup candidates.
 
-### 3. Diagnose the network before installing
+### 3. Establish the WSL command boundary
+
+When the target is a fully native WSL command-line environment, review and run:
+
+    bash scripts/configure-wsl-path-isolation.sh --check
+    sudo bash scripts/configure-wsl-path-isolation.sh
+
+This sets only `[interop] appendWindowsPath=false`. It preserves WSL interop and all networking sections. Afterward, have the user run `wsl --shutdown` from Windows PowerShell and re-open WSL.
+
+Do not simulate completion with a sanitized child environment. Verify the real restarted shell with:
+
+    bash scripts/verify-ai-cli-migration.sh
+
+Read references/ai-cli-migration.md for the boundary model and references/windows-ai-cleanup.md before removing Windows tools.
+
+### 4. Diagnose the network before installing
 
 Test both the current environment and an explicit proxy:
 
@@ -59,18 +80,21 @@ Compare GitHub, Docker Registry, Docker packages, npm, and Astral endpoints. A D
 
 Do not assume that a working curl or apt proxy also configures Docker. The Docker daemon is a systemd service and needs its own proxy configuration.
 
-### 4. Prepare the native WSL toolchain
+Skip this section when the current network is already healthy and the user did not request proxy changes.
+
+### 5. Prepare the native WSL toolchain
 
 Prefer this baseline:
 
 - Git, OpenSSH client, curl, wget, jq, build-essential, cmake, and pkg-config from Ubuntu.
 - Python from Ubuntu for system use; uv for project environments, managed Python versions, and Python tools.
 - Node through one WSL-native version manager; Corepack for pnpm or Yarn.
-- Codex and other AI CLIs installed under WSL home directories, not resolved through /mnt.
+- Bun installed under the Linux home directory when tools require it.
+- Codex, Kiro CLI, Claude Code, OpenCode, and Feishu/Lark commands installed under WSL directories, not resolved through `/mnt`.
 
 After enabling Corepack, verify command -v pnpm points to the WSL Node directory. Do not accept a Windows pnpm shim as the final state.
 
-### 5. Configure GitHub access
+### 6. Configure GitHub access
 
 Verify SSH key and directory permissions without printing private keys. Test port 22 with a finite timeout.
 
@@ -82,7 +106,26 @@ Only after successful authentication, configure the github.com host to use ssh.g
 
 Run gh auth login in the user's terminal. If a headless WSL environment stores credentials in ~/.config/gh/hosts.yml, verify the file mode is 600 and never print its contents.
 
-### 6. Install Docker Engine
+### 7. Migrate AI CLI configuration
+
+Read references/ai-cli-migration.md and migrate one tool at a time. For each tool:
+
+1. Install and resolve the native WSL command.
+2. Copy only reviewed portable settings.
+3. Rewrite Windows command and MCP paths to Linux paths.
+4. Migrate authentication into private local state with mode `600`; never print or commit it.
+5. Run the tool's own status or Doctor command.
+6. Only then remove the unwanted Windows executable.
+
+Important tool-specific boundaries:
+
+- Claude user-wide settings belong in `~/.claude/settings.json`; project-local overrides belong in `<project>/.claude/settings.local.json`.
+- OpenCode Responses routes use `@ai-sdk/openai`; keep provider-specific beta headers scoped to that provider.
+- Windows and WSL Codex state must remain separate. Full-auto permissions are an explicit opt-in.
+- Kiro skills, steering, shell integration, and MCP commands must use Linux-owned paths. Run Qterm diagnostics in a real terminal, not a nested agent PTY.
+- Do not install plugins merely because they existed on Windows; install only those the user approves.
+
+### 8. Install Docker Engine
 
 Require systemd. If it is unavailable, enable it in /etc/wsl.conf and have the user restart WSL before proceeding.
 
@@ -98,7 +141,7 @@ If image pulls time out while curl through the proxy works, review and run:
 
 Keep the daemon proxy address synchronized with the Windows proxy port.
 
-### 7. Clean only verified artifacts
+### 9. Clean only verified artifacts
 
 Typical safe candidates include:
 
@@ -109,6 +152,7 @@ Typical safe candidates include:
 - The hello-world test image after Docker validation.
 - Empty npm scope directories left by uninstalled tools.
 - Windows PATH entries whose target directory is confirmed absent.
+- Windows command shims whose owning AI package is confirmed removed.
 
 Do not automatically delete:
 
@@ -116,15 +160,22 @@ Do not automatically delete:
 - npm, uv, or package-manager caches on a slow network unless corrupt or explicitly unwanted.
 - Active /tmp directories belonging to Codex, Node, tmux, or sandbox processes.
 - Model directories, project repositories, Docker volumes, or container images not created by the workflow.
+- Windows Claude/OpenCode configuration or history retained intentionally as a private backup.
 
 Run npm cache verify before considering npm cache deletion. Prefer apt-get clean over autoremove unless package dependency impact has been reviewed.
 
-### 8. Validate the finished environment
+### 10. Validate the finished environment
 
 Confirm:
 
 - All intended commands resolve to WSL paths.
+- No `/mnt/<drive>` directory appears in the restarted WSL PATH when full isolation was selected.
+- Windows-only and removed commands are absent from WSL command discovery.
+- Explicit absolute-path Windows interop still works when it is intended to remain enabled.
 - Codex doctor reports no failures.
+- Kiro Doctor passes configuration checks; interpret Qterm only from a real parent terminal.
+- Claude and GitHub authentication status checks succeed without printing credentials.
+- OpenCode and oh-my-openagent provider, LSP, and Team Mode checks succeed when selected.
 - GitHub SSH and gh API authentication work.
 - Docker and Compose report versions; Docker is active and enabled.
 - A non-root user can pull and run hello-world.
@@ -137,8 +188,14 @@ Summarize retained caches and configuration intentionally. Finish with wsl --shu
 ## Resource routing
 
 - Read references/lessons.md for the chronological field notes, failure signatures, cleanup decisions, and security guidance distilled from a real migration.
+- Read references/ai-cli-migration.md for the complete Windows/WSL boundary and per-tool Claude, OpenCode, Codex, Kiro, and Feishu migration procedure.
+- Read references/windows-ai-cleanup.md before inventorying or removing Windows AI applications, shims, packages, and residual state.
+- Read references/validated-state-2026-07-16.md for the evidence snapshot and versions from the completed migration; do not treat it as a version lock.
 - Read references/sources.md before changing WSL, Docker, GitHub SSH, Corepack, or uv behavior; verify current official guidance if versions have changed.
 - Run scripts/audit-wsl-ai-env.sh for the first and final inventory.
+- Run scripts/audit-windows-ai-tools.ps1 from Windows PowerShell for a read-only Windows inventory.
+- Run scripts/configure-wsl-path-isolation.sh only after the user chooses native WSL command isolation.
+- Run scripts/verify-ai-cli-migration.sh after a full WSL restart.
 - Run scripts/check-network.sh before blaming Git, apt, npm, uv, or Docker.
 - Use scripts/install-docker-engine.sh only after reviewing conflicts and obtaining local sudo authentication.
 - Use scripts/configure-docker-proxy.sh only when the daemon needs an explicit proxy or its current proxy is stale.

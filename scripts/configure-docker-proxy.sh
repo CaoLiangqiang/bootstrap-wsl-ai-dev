@@ -6,7 +6,9 @@ no_proxy_value="localhost,127.0.0.1,::1"
 run_test=0
 
 usage() {
-  printf '%s\n' +    'Usage: sudo bash configure-docker-proxy.sh --proxy URL [--no-proxy LIST] [--test]' +    'Creates a systemd drop-in for the rootful Docker daemon and restarts Docker.'
+  printf '%s\n' \
+    'Usage: sudo bash configure-docker-proxy.sh --proxy URL [--no-proxy LIST] [--test]' \
+    'Creates a systemd drop-in for the rootful Docker daemon and restarts Docker.'
 }
 
 while [ "$#" -gt 0 ]; do
@@ -77,7 +79,12 @@ drop_in_file="$drop_in_dir/http-proxy.conf"
 
 printf '[2/4] Write the Docker systemd proxy drop-in\n'
 install -m 0755 -d "$drop_in_dir"
-printf '%s\n' +  '[Service]' +  "Environment=\"HTTP_PROXY=$escaped_proxy\"" +  "Environment=\"HTTPS_PROXY=$escaped_proxy\"" +  "Environment=\"NO_PROXY=$escaped_no_proxy\"" +  > "$drop_in_file"
+printf '%s\n' \
+  '[Service]' \
+  "Environment=\"HTTP_PROXY=$escaped_proxy\"" \
+  "Environment=\"HTTPS_PROXY=$escaped_proxy\"" \
+  "Environment=\"NO_PROXY=$escaped_no_proxy\"" \
+  > "$drop_in_file"
 chmod 0644 "$drop_in_file"
 
 printf '[3/4] Reload systemd and restart Docker\n'

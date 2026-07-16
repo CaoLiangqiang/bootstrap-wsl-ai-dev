@@ -11,6 +11,8 @@
 7. Cleanup decisions
 8. Failure signatures
 9. Security boundaries
+10. Full Windows PATH isolation
+11. Multi-tool AI CLI migration
 
 ## 1. Outcome and sequence
 
@@ -241,7 +243,7 @@ Verify mode 600 and never print the file. A masked gh auth status plus a read-on
 The successful migration removed:
 
 - A large one-time Codex download archive.
-- The NVM installer script after NVM worked.
+- A standalone downloaded NVM installer after NVM worked. Do not delete `$NVM_DIR/install.sh`, which can be part of the active NVM checkout.
 - An obsolete standalone Codex release after current symlink and doctor checks.
 - Docker APT archives with apt-get clean.
 - The hello-world test image.
@@ -285,3 +287,33 @@ Use npm cache verify before deleting npm cache. A verified cache is reusable dat
 - Default new GitHub repositories to private when visibility is unspecified.
 - Avoid deleting Windows model data or application directories based only on a name match.
 - Keep root scripts short, auditable, idempotent where possible, and explicit about every file they write.
+
+## 10. Full Windows PATH isolation
+
+Per-command path ordering is not sufficient when the desired boundary is "WSL must never silently use a Windows tool." The durable WSL setting is:
+
+```ini
+[interop]
+appendWindowsPath=false
+```
+
+This does not disable WSL interop. An absolute command such as `/mnt/c/Windows/System32/cmd.exe` remains callable. It only stops WSL from appending Windows executable directories to every new process.
+
+Apply this setting without rewriting `[wsl2]`, mirrored networking, DNS, proxy, or Clash configuration. They solve different problems. Preserve existing sections, restart with `wsl --shutdown`, and verify the real new shell rather than a simulated environment.
+
+After restart, distinguish `/usr/lib/wsl/lib` from `/mnt/c/...`: the former is a normal Linux-side WSL runtime path and is not evidence of Windows PATH pollution.
+
+## 11. Multi-tool AI CLI migration
+
+The later migration added several lessons beyond a simple executable move:
+
+- Keep Windows Codex and Kiro when they still serve Windows workflows; install separate WSL copies rather than sharing state.
+- Remove Windows Claude Code and OpenCode executables only after their native WSL replacements authenticate and pass checks. Private config/history may remain as backup.
+- Treat configuration migration as a schema merge, not a directory copy. Preserve desired models and behaviors, rewrite executable paths, and omit stale plugins and Windows-only paths.
+- Protect local settings containing provider keys or tokens with mode `600`. Never commit personal settings, auth files, steering content, or session history.
+- Kiro skills and MCP commands must point to Linux-owned paths. A Windows symlink target reintroduces the boundary violation even when PATH itself is clean.
+- Kiro Qterm diagnostics need the real terminal parent. Nested PTYs can produce false raw-mode or socket failures.
+- OpenCode Responses routes may need provider-specific headers. Attach those headers only to the provider that requires them.
+- Full-auto permission settings in Codex, Claude, and Kiro are explicit trust decisions. Document them and never enable them as an unannounced bootstrap default.
+
+See `references/ai-cli-migration.md`, `references/windows-ai-cleanup.md`, and the dated validated-state snapshot for the complete reproducible procedure.

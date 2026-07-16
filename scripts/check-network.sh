@@ -5,7 +5,11 @@ mode="environment"
 proxy_url=""
 
 usage() {
-  printf '%s\n' +    'Usage: check-network.sh [--direct | --proxy URL]' +    '  no option     honor the current curl proxy environment' +    '  --direct      bypass all proxy environment variables' +    '  --proxy URL   force one HTTP/HTTPS proxy without printing credentials'
+  printf '%s\n' \
+    'Usage: check-network.sh [--direct | --proxy URL]' \
+    '  no option     honor the current curl proxy environment' \
+    '  --direct      bypass all proxy environment variables' \
+    '  --proxy URL   force one HTTP/HTTPS proxy without printing credentials'
 }
 
 while [ "$#" -gt 0 ]; do

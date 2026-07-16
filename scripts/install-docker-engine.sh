@@ -4,7 +4,10 @@ set -Eeuo pipefail
 target_user=""
 
 usage() {
-  printf '%s\n' +    'Usage: sudo bash install-docker-engine.sh [--user USER]' +    'Installs Docker Engine from the official Docker Ubuntu repository.' +    'The script refuses to remove conflicting packages automatically.'
+  printf '%s\n' \
+    'Usage: sudo bash install-docker-engine.sh [--user USER]' \
+    'Installs Docker Engine from the official Docker Ubuntu repository.' \
+    'The script refuses to remove conflicting packages automatically.'
 }
 
 while [ "$#" -gt 0 ]; do
@@ -76,15 +79,29 @@ apt-get install -y ca-certificates curl
 
 printf '[2/5] Configure the official Docker repository\n'
 install -m 0755 -d /etc/apt/keyrings
-curl --fail --silent --show-error --location --retry 3 +  https://download.docker.com/linux/ubuntu/gpg +  --output /etc/apt/keyrings/docker.asc
+curl --fail --silent --show-error --location --retry 3 \
+  https://download.docker.com/linux/ubuntu/gpg \
+  --output /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
 
 architecture="$(dpkg --print-architecture)"
-printf '%s\n' +  'Types: deb' +  'URIs: https://download.docker.com/linux/ubuntu' +  "Suites: $codename" +  'Components: stable' +  "Architectures: $architecture" +  'Signed-By: /etc/apt/keyrings/docker.asc' +  > /etc/apt/sources.list.d/docker.sources
+printf '%s\n' \
+  'Types: deb' \
+  'URIs: https://download.docker.com/linux/ubuntu' \
+  "Suites: $codename" \
+  'Components: stable' \
+  "Architectures: $architecture" \
+  'Signed-By: /etc/apt/keyrings/docker.asc' \
+  > /etc/apt/sources.list.d/docker.sources
 
 printf '[3/5] Install Docker Engine, Buildx, and Compose\n'
 apt-get update
-apt-get install -y +  docker-ce +  docker-ce-cli +  containerd.io +  docker-buildx-plugin +  docker-compose-plugin
+apt-get install -y \
+  docker-ce \
+  docker-ce-cli \
+  containerd.io \
+  docker-buildx-plugin \
+  docker-compose-plugin
 
 printf '[4/5] Enable and start Docker\n'
 systemctl enable --now docker

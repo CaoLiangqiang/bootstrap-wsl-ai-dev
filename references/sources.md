@@ -48,4 +48,32 @@ Consult these sources before changing version-sensitive behavior.
 - Codex documentation:
   https://developers.openai.com/codex/
 
+## Claude Code
+
+- Claude Code settings and configuration scopes:
+  https://code.claude.com/docs/en/settings
+- Claude Code overview and current installation guidance:
+  https://code.claude.com/docs/en/overview
+
+## OpenCode
+
+- OpenCode configuration:
+  https://opencode.ai/docs/config/
+- OpenCode providers:
+  https://opencode.ai/docs/providers/
+- oh-my-openagent repository:
+  https://github.com/code-yeongyu/oh-my-openagent
+
+## Kiro CLI
+
+- Kiro CLI documentation:
+  https://kiro.dev/docs/cli/
+
+## Bun and NVM
+
+- Bun installation:
+  https://bun.sh/docs/installation
+- NVM repository and installation guidance:
+  https://github.com/nvm-sh/nvm
+
 Re-check release support, command flags, fingerprints, and repository instructions when the local tool version differs from the environment described in references/lessons.md.

@@ -15,6 +15,14 @@ first_line() {
   fi
 }
 
+command_origin() {
+  case "$1" in
+    /mnt/[a-zA-Z]/*) printf 'Windows' ;;
+    /usr/*|/bin/*|/sbin/*|/home/*|/snap/*) printf 'WSL' ;;
+    *) printf 'review' ;;
+  esac
+}
+
 section "Platform"
 if [ -r /etc/os-release ]; then
   . /etc/os-release
@@ -29,7 +37,12 @@ if [ -r /etc/wsl.conf ]; then
 fi
 
 section "Command origins"
-for cmd in git gh ssh python python3 pip pip3 uv uvx node npm npx corepack pnpm yarn codex claude kimi trae aider opencode docker; do
+printf '%-18s %-8s %-65s %s\n' 'Command' 'Origin' 'Path' 'Version'
+for cmd in \
+  git gh ssh python python3 pip pip3 uv uvx \
+  node npm npx corepack pnpm yarn bun \
+  codex kiro-cli claude opencode aider \
+  feishu feishu-mcp-pro lark-cli ast-grep docker; do
   path="$(command -v "$cmd" 2>/dev/null || true)"
   [ -n "$path" ] || continue
   case "$cmd" in
@@ -46,7 +59,7 @@ for cmd in git gh ssh python python3 pip pip3 uv uvx node npm npx corepack pnpm 
       version="$(first_line "$cmd" --version)"
       ;;
   esac
-  printf '%-12s %-65s %s\n' "$cmd" "$path" "$version"
+  printf '%-18s %-8s %-65s %s\n' "$cmd" "$(command_origin "$path")" "$path" "$version"
 done
 
 section "Windows PATH entries visible in this shell"
@@ -66,6 +79,32 @@ while IFS= read -r entry; do
   esac
 done < <(printf '%s' "$PATH" | tr ':' '\n')
 printf 'Visible Windows entries: %s; missing targets in this shell: %s\n' "$windows_count" "$stale_count"
+
+section "WSL interop boundary"
+if grep -Eiq '^[[:space:]]*appendWindowsPath[[:space:]]*=[[:space:]]*false[[:space:]]*$' /etc/wsl.conf 2>/dev/null; then
+  printf 'Automatic Windows PATH import: disabled\n'
+else
+  printf 'Automatic Windows PATH import: enabled, unset, or ambiguous\n'
+fi
+if [ -x /mnt/c/Windows/System32/cmd.exe ] \
+    && (cd /mnt/c && /mnt/c/Windows/System32/cmd.exe /d /c "exit 0") >/dev/null 2>&1; then
+  printf 'Explicit Windows interop by absolute path: working\n'
+else
+  printf 'Explicit Windows interop by absolute path: unavailable\n'
+fi
+
+section "Windows-only and removed commands visible in WSL"
+visible_removed=0
+for cmd in \
+  kiro powershell.exe cmd.exe explorer.exe \
+  gemini micode crush paseo happy happy-coder uipro uipro-cli \
+  agentic-hackathon figma-mcp gerrit-mcp playwright-cli defuddle; do
+  path="$(command -v "$cmd" 2>/dev/null || true)"
+  [ -n "$path" ] || continue
+  visible_removed=$((visible_removed + 1))
+  printf '%-20s %s\n' "$cmd" "$path"
+done
+[ "$visible_removed" -gt 0 ] || printf 'No isolated or removed commands are visible\n'
 
 section "Proxy variables"
 for name in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; do
@@ -90,6 +129,12 @@ fi
 section "AI CLI authentication"
 if command -v codex >/dev/null 2>&1; then
   printf 'Codex: installed; use codex doctor for a redacted full check\n'
+fi
+if command -v kiro-cli >/dev/null 2>&1; then
+  printf 'Kiro CLI: installed; run kiro-cli doctor --all in a real terminal\n'
+fi
+if command -v opencode >/dev/null 2>&1; then
+  printf 'OpenCode: installed; keep provider keys in private local configuration\n'
 fi
 if command -v claude >/dev/null 2>&1; then
   if timeout 10 claude auth status >/dev/null 2>&1; then
@@ -116,7 +161,7 @@ fi
 
 section "Known one-time artifacts"
 found=0
-for path in "$HOME/codex-linux-x64.tgz" "$HOME/get-docker.sh" "$HOME/.nvm/install.sh"; do
+for path in "$HOME/codex-linux-x64.tgz" "$HOME/get-docker.sh" "$HOME/install-nvm.sh" "$HOME/nvm-install.sh"; do
   if [ -e "$path" ]; then
     found=1
     du -sh "$path" 2>/dev/null || printf '%s\n' "$path"
@@ -136,5 +181,9 @@ else
 fi
 
 section "Name-based residue candidates"
-find "$HOME" -maxdepth 4 \( -iname '*kimi*' -o -iname '*trae*' -o -iname '*moonshot*' \) -print 2>/dev/null | sed -n '1,120p'
+find "$HOME" -maxdepth 4 \( \
+  -iname '*kimi*' -o -iname '*trae*' -o -iname '*moonshot*' \
+  -o -iname '*gemini*' -o -iname '*micode*' -o -iname '*crush*' \
+  -o -iname '*paseo*' -o -iname '*happy-coder*' -o -iname '*uipro*' \
+\) -print 2>/dev/null | sed -n '1,160p'
 printf '\nAudit complete. Treat name matches as candidates, not automatic deletion targets.\n'
