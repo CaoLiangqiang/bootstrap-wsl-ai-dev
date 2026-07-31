@@ -93,18 +93,19 @@ else
   printf 'Explicit Windows interop by absolute path: unavailable\n'
 fi
 
-section "Windows-only and removed commands visible in WSL"
-visible_removed=0
+section "Windows executable names and inventory candidates visible in WSL"
+visible_candidates=0
 for cmd in \
   kiro powershell.exe cmd.exe explorer.exe \
   gemini micode crush paseo happy happy-coder uipro uipro-cli \
   agentic-hackathon figma-mcp gerrit-mcp playwright-cli defuddle; do
   path="$(command -v "$cmd" 2>/dev/null || true)"
   [ -n "$path" ] || continue
-  visible_removed=$((visible_removed + 1))
+  visible_candidates=$((visible_candidates + 1))
   printf '%-20s %s\n' "$cmd" "$path"
 done
-[ "$visible_removed" -gt 0 ] || printf 'No isolated or removed commands are visible\n'
+[ "$visible_candidates" -gt 0 ] || printf 'No known Windows executable names or inventory candidates are visible\n'
+printf 'This is an inventory only; visible commands are review candidates, not an approved removal policy.\n'
 
 section "Proxy variables"
 for name in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; do
@@ -116,8 +117,16 @@ for name in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all
 done
 
 section "Git and GitHub"
-printf 'Git name: %s\n' "$(git config --global --get user.name 2>/dev/null || printf 'unset')"
-printf 'Git email: %s\n' "$(git config --global --get user.email 2>/dev/null || printf 'unset')"
+if git config --global --get user.name >/dev/null 2>&1; then
+  printf 'Git name: configured\n'
+else
+  printf 'Git name: unset\n'
+fi
+if git config --global --get user.email >/dev/null 2>&1; then
+  printf 'Git email: configured\n'
+else
+  printf 'Git email: unset\n'
+fi
 if command -v gh >/dev/null 2>&1; then
   if timeout 10 gh auth status >/dev/null 2>&1; then
     printf 'GitHub CLI auth: configured\n'
