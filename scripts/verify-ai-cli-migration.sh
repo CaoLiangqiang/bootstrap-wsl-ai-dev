@@ -1,26 +1,54 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-strict=0
 run_doctors=1
 passes=0
 warnings=0
 failures=0
+required_commands=()
+expected_absent_commands=(cmd.exe powershell.exe pwsh.exe explorer.exe)
 
 usage() {
   printf '%s\n' \
-    'Usage: verify-ai-cli-migration.sh [--strict] [--skip-doctors]' \
-    'Verifies that WSL resolves native AI CLIs and does not inherit Windows PATH.' \
+    'Usage: verify-ai-cli-migration.sh [--require-native COMMAND] [--expect-absent COMMAND] [--skip-doctors]' \
+    'Verifies WSL PATH isolation and native origins for installed known AI and development tools.' \
     '' \
-    '  --strict        require the full reference profile, including Codex, Kiro, Feishu, uv, and Docker' \
+    '  --require-native COMMAND  require a command to be installed and resolved from WSL; repeatable' \
+    '  --expect-absent COMMAND   require a command to be absent from PATH; repeatable' \
     '  --skip-doctors  skip Codex and interactive Kiro diagnostics'
+}
+
+valid_command_name() {
+  [[ "$1" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]
+}
+
+add_command_option() {
+  local option="$1"
+  local command="${2:-}"
+
+  if ! valid_command_name "$command"; then
+    printf 'Invalid command name for %s: %s\n' "$option" "${command:-<empty>}" >&2
+    usage >&2
+    exit 2
+  fi
+
+  case "$option" in
+    --require-native) required_commands+=("$command") ;;
+    --expect-absent) expected_absent_commands+=("$command") ;;
+  esac
 }
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --strict)
-      strict=1
-      shift
+    --require-native|--expect-absent)
+      option="$1"
+      if [ "$#" -lt 2 ]; then
+        printf 'Missing command name for %s\n' "$option" >&2
+        usage >&2
+        exit 2
+      fi
+      add_command_option "$option" "$2"
+      shift 2
       ;;
     --skip-doctors)
       run_doctors=0
@@ -54,14 +82,6 @@ fail() {
 
 section() {
   printf '\n== %s ==\n' "$1"
-}
-
-missing_expected() {
-  if [ "$strict" -eq 1 ]; then
-    fail "$1 is not installed"
-  else
-    warn "$1 is not installed"
-  fi
 }
 
 is_windows_path() {
@@ -107,16 +127,17 @@ else
 fi
 
 section "Native command origins"
-native_commands=(
-  codex kiro-cli claude opencode
-  node npm pnpm bun
-  feishu feishu-mcp-pro lark-cli
-  git gh rg uv docker
+known_commands=(
+  codex kiro kiro-cli claude opencode aider
+  gemini micode crush paseo happy happy-coder uipro uipro-cli
+  agentic-hackathon figma-mcp gerrit-mcp playwright-cli defuddle
+  feishu feishu-mcp-pro lark-cli ast-grep
+  git gh rg uv uvx node npm npx corepack pnpm yarn bun docker
 )
-for cmd in "${native_commands[@]}"; do
+for cmd in "${known_commands[@]}"; do
   path="$(command -v "$cmd" 2>/dev/null || true)"
   if [ -z "$path" ]; then
-    missing_expected "$cmd"
+    printf '[INFO] %s is not installed; not required by default\n' "$cmd"
   elif is_windows_path "$path"; then
     fail "$cmd resolves to Windows: $path"
   else
@@ -124,13 +145,20 @@ for cmd in "${native_commands[@]}"; do
   fi
 done
 
+section "Required native commands"
+for cmd in "${required_commands[@]}"; do
+  path="$(command -v "$cmd" 2>/dev/null || true)"
+  if [ -z "$path" ]; then
+    fail "$cmd is required but not installed"
+  elif is_windows_path "$path"; then
+    fail "$cmd is required natively but resolves to Windows: $path"
+  else
+    pass "$cmd is required and resolves natively: $path"
+  fi
+done
+
 section "Commands expected to be absent from WSL PATH"
-isolated_commands=(
-  kiro powershell.exe cmd.exe explorer.exe
-  gemini micode crush paseo happy happy-coder uipro uipro-cli
-  agentic-hackathon figma-mcp gerrit-mcp playwright-cli defuddle
-)
-for cmd in "${isolated_commands[@]}"; do
+for cmd in "${expected_absent_commands[@]}"; do
   path="$(command -v "$cmd" 2>/dev/null || true)"
   if [ -z "$path" ]; then
     pass "$cmd is absent"

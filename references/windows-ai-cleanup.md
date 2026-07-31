@@ -6,7 +6,7 @@ This workflow decides each Windows AI tool individually before changing it. It i
 
 1. Decision rule
 2. Read-only inventory
-3. Validated policy from the completed migration
+3. Target matrix
 4. Removal sequence
 5. Configuration versus executable cleanup
 6. Post-cleanup verification
@@ -32,6 +32,16 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 Add `-IncludeWinget` for the complete winget inventory. The script reads command resolution, Appx packages, uninstall registrations, and npm shims. It does not uninstall or delete anything.
 
+After reviewing the machine, pass only the decisions made for that workstation:
+
+```powershell
+.\scripts\audit-windows-ai-tools.ps1 `
+  -KeepOnWindows codex,kiro-cli `
+  -RemoveFromWindows claude,opencode
+```
+
+Commands not named in either list remain labeled `review`. The lists only annotate the read-only report; they do not uninstall software. A command cannot appear in both lists.
+
 The same script can be launched explicitly from WSL after PATH isolation:
 
 ```bash
@@ -41,35 +51,15 @@ The same script can be launched explicitly from WSL after PATH isolation:
 
 Also inspect tool-specific IDE extensions and running processes. Do not infer ownership from a directory name alone.
 
-## 3. Validated policy from the completed migration
+## 3. Target matrix
 
-### Retained on Windows
+Create a workstation-specific target matrix before removing anything:
 
-- Kiro IDE and Kiro CLI.
-- Codex App and Codex CLI.
-- ChatGPT Desktop.
-- Feishu/Lark CLI and MCP commands needed by Windows Kiro.
-- General Windows development tools such as npm, pnpm, nrm, and port-whisperer.
-- Private Claude Code and OpenCode configuration/history as offline backups, without an active Windows executable.
+| Tool | Current owner and path | Target state | Replacement verified | Private state decision |
+| --- | --- | --- | --- | --- |
+| `<tool>` | `<installer and path>` | Keep on Windows / Move to WSL / Remove | Yes / No | Keep / Migrate / Delete |
 
-### Removed from Windows
-
-- Gemini.
-- MiCode.
-- Crush.
-- Claude Code executable, package, and editor extension.
-- OpenCode package and launch script.
-- Paseo.
-- Happy and happy-coder.
-- uipro and uipro-cli.
-- Broken `agentic-hackathon` residue.
-- `claudeway.cmd`.
-- `figma-mcp`.
-- `gerrit-mcp`.
-- `playwright-cli`.
-- `defuddle`.
-
-These names describe one workstation's approved policy. Reconfirm before applying it elsewhere.
+Do not ship or reuse another workstation's approved tool list. General Windows developer tools, desktop applications, AI CLIs, editor extensions, command shims, and private configuration are separate decisions. A tool may remain on Windows while WSL uses an isolated Linux installation.
 
 ## 4. Removal sequence
 
@@ -96,7 +86,7 @@ Do not run these examples with guessed identifiers. Display the exact match firs
 
 ## 5. Configuration versus executable cleanup
 
-Removing an executable while retaining private configuration is valid. For Claude Code and OpenCode, the completed migration kept Windows configuration/history only as backup while removing command shims and packages.
+Removing an executable while retaining private configuration is valid when the user explicitly chooses that target state.
 
 Do not leave a backup directory on WSL PATH. Do not symlink WSL configuration to the backup. Copy only reviewed portable settings, rewrite Windows paths, set Linux file mode `600`, and migrate authentication separately.
 
@@ -104,18 +94,19 @@ Session histories can contain prompts, source fragments, URLs, and secrets. Neve
 
 ## 6. Post-cleanup verification
 
-From Windows PowerShell, confirm retained tools still work and removed tools do not resolve:
+From Windows PowerShell, confirm retained tools still work and each tool approved for removal no longer resolves:
 
 ```powershell
-codex --version
-kiro-cli --version
-Get-Command claude, opencode, gemini, micode, crush -All -ErrorAction SilentlyContinue
+Get-Command <retained-command> -All
+Get-Command <removed-command> -All -ErrorAction SilentlyContinue
 ```
 
 From a new WSL process after `wsl --shutdown`, run:
 
 ```bash
-bash scripts/verify-ai-cli-migration.sh --strict
+bash scripts/verify-ai-cli-migration.sh \
+  --require-native '<WSL-command>' \
+  --expect-absent '<Windows-only-or-removed-command>'
 ```
 
-The Windows Codex and Kiro commands should remain usable in Windows while their paths remain invisible to normal WSL command lookup. That is isolation, not duplication pollution.
+Windows commands intentionally retained in the target matrix should remain usable in Windows while their paths remain invisible to normal WSL command lookup. That is isolation, not duplication pollution.

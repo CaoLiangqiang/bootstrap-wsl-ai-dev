@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Verify Agent Skill discovery
+        run: |
+          npx --yes skills@1.5.21 add . --list | tee /tmp/skills-list.txt
+          grep -F 'bootstrap-wsl-ai-dev' /tmp/skills-list.txt
+
       - name: Check Bash syntax
         run: bash -n scripts/*.sh tests/*.sh
 
@@ -22,16 +27,77 @@ jobs:
       - name: Test WSL isolation renderer
         run: bash tests/test-configure-wsl-path-isolation.sh
 
+      - name: Test migration verifier interface
+        run: |
+          bash scripts/verify-ai-cli-migration.sh --help | grep -F -- '--require-native COMMAND'
+          if bash scripts/verify-ai-cli-migration.sh --require-native; then
+            echo 'missing --require-native value was accepted' >&2
+            exit 1
+          fi
+          if bash scripts/verify-ai-cli-migration.sh --expect-absent 'unsafe;name'; then
+            echo 'unsafe --expect-absent value was accepted' >&2
+            exit 1
+          fi
+
       - name: Parse PowerShell scripts
         shell: pwsh
         run: |
-          $errors = $null
-          [System.Management.Automation.Language.Parser]::ParseFile(
-            "$PWD/scripts/audit-windows-ai-tools.ps1",
-            [ref]$null,
-            [ref]$errors
-          ) | Out-Null
-          if ($errors.Count -gt 0) {
-            $errors | Format-List | Out-String | Write-Error
+          $parseErrors = @()
+          Get-ChildItem -Path "$PWD/scripts" -Filter '*.ps1' | ForEach-Object {
+            $fileErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref]$null,
+              [ref]$fileErrors
+            ) | Out-Null
+            $parseErrors += $fileErrors
+          }
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | Format-List | Out-String | Write-Error
             exit 1
+          }
+
+  windows-explorer-wsl:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Parse PowerShell scripts
+        shell: powershell
+        run: |
+          $parseErrors = @()
+          Get-ChildItem -Path "$PWD/scripts" -Filter '*.ps1' | ForEach-Object {
+            $fileErrors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $_.FullName,
+              [ref]$null,
+              [ref]$fileErrors
+            ) | Out-Null
+            $parseErrors += $fileErrors
+          }
+          if ($parseErrors.Count -gt 0) {
+            $parseErrors | Format-List | Out-String | Write-Error
+            exit 1
+          }
+
+      - name: Test Explorer to WSL integration
+        shell: powershell
+        run: ./tests/test-configure-windows-explorer-wsl.ps1
+
+      - name: Test Windows audit target matrix
+        shell: powershell
+        run: |
+          $output = ./scripts/audit-windows-ai-tools.ps1 `
+            -KeepOnWindows codex -RemoveFromWindows claude | Out-String
+          if ($output -notmatch '(?m)^codex\s+keep\s+' -or $output -notmatch '(?m)^claude\s+remove\s+') {
+            throw 'Explicit keep/remove policy labels were not rendered.'
+          }
+          try {
+            ./scripts/audit-windows-ai-tools.ps1 `
+              -KeepOnWindows codex -RemoveFromWindows codex | Out-Null
+            throw 'Overlapping keep/remove targets were accepted.'
+          } catch {
+            if ($_.Exception.Message -notmatch 'cannot be both kept and removed') {
+              throw
+            }
           }

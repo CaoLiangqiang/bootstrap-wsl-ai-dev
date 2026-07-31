@@ -1,6 +1,6 @@
 # Native WSL AI CLI Migration
 
-This guide captures a completed migration in which Windows keeps selected desktop tools while command-line AI development runs natively in WSL Ubuntu.
+This guide defines a reusable migration in which Windows may keep selected desktop tools while command-line AI development runs natively in WSL Ubuntu.
 
 ## Contents
 
@@ -20,14 +20,13 @@ Use separate installations and separate state directories on each operating syst
 
 | Tool or state | Windows | WSL Ubuntu |
 | --- | --- | --- |
-| Codex App and CLI | Keep | Install native CLI |
-| Kiro IDE and CLI | Keep | Install native CLI |
-| ChatGPT Desktop | Keep | Not required |
-| Claude Code | Remove executable; retain backup only if useful | Install, authenticate, and configure |
-| OpenCode | Remove executable; retain backup only if useful | Install and configure |
+| Desktop applications and IDEs | Keep only when needed for Windows workflows | Install a Linux counterpart only when needed |
+| AI and developer CLIs | Decide per tool in the workstation target matrix | Install selected tools natively |
 | Node, npm, pnpm, Bun, uv | May remain for Windows work | Install native copies |
-| Feishu/Lark commands | Keep when Windows Kiro needs them | Install native copies for WSL tools |
-| Credentials and history | Keep private Windows state only where needed | Migrate deliberately; never symlink across `/mnt` |
+| Integration commands such as Feishu/Lark | Keep only for Windows consumers that still need them | Install native copies for WSL consumers |
+| Credentials, settings, and history | Keep private Windows state only where needed | Migrate deliberately; never symlink state across `/mnt` |
+
+Build the per-tool decision in [Windows AI Tool Inventory and Cleanup](windows-ai-cleanup.md) before removing anything. This guide describes native WSL migration techniques; it does not prescribe which Windows tools another workstation must keep or remove.
 
 Shared project files under `/mnt/c` are not automatically pollution. Cross-environment command resolution is the problem: a WSL shell must not silently run a Windows `.exe`, `.cmd`, or npm shim because Windows PATH was appended.
 
@@ -103,23 +102,7 @@ Do not point WSL package-manager shims at `%APPDATA%\npm`.
 
 For a WSL-only Claude installation, migrate intentional user settings into `~/.claude/settings.json` and remove obsolete Windows paths. Do not install Windows plugins automatically.
 
-### Validated settings pattern
-
-The completed migration used a ten-minute API timeout and enabled in-process agent teams:
-
-```json
-{
-  "skipDangerousModePermissionPrompt": true,
-  "teammateMode": "in-process",
-  "env": {
-    "API_TIMEOUT_MS": "600000",
-    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "CLAUDE_TEAMMATE_MODE": "in-process"
-  }
-}
-```
-
-`skipDangerousModePermissionPrompt=true` is an explicit high-trust choice, not a safe default for other users. Document it and do not silently enable it.
+Review every migrated setting against the current Claude Code schema. Do not copy experimental flags, timeout overrides, team settings, or permission-bypass options merely because they existed on another workstation. High-trust permission changes require an explicit user decision.
 
 To restore automatic updates, remove stale `DISABLE_AUTOUPDATER` settings rather than pinning an old executable. Validate with:
 
@@ -144,14 +127,11 @@ For an OpenAI Responses-compatible router, use the Responses provider rather tha
   "autoupdate": true,
   "plugin": ["oh-my-openagent@latest"],
   "provider": {
-    "api-router-codex": {
+    "responses-provider": {
       "npm": "@ai-sdk/openai",
       "options": {
         "baseURL": "{env:AI_ROUTER_BASE_URL}",
-        "apiKey": "{env:AI_ROUTER_API_KEY}",
-        "headers": {
-          "x-codex-beta-features": "memories,remote_compaction_v2"
-        }
+        "apiKey": "{env:AI_ROUTER_API_KEY}"
       },
       "models": {}
     }
@@ -159,7 +139,7 @@ For an OpenAI Responses-compatible router, use the Responses provider rather tha
 }
 ```
 
-The `x-codex-beta-features` header is required by the validated Responses route. Other providers should not receive it automatically.
+Add provider-specific headers only when the provider's current documentation requires them, and scope them to that provider.
 
 LSP support is available unless it is explicitly disabled. Keep LSP out of disabled-tool lists and verify the language server binaries resolve inside WSL. A minimal team-mode block is:
 
@@ -180,17 +160,9 @@ Keep provider keys private and run the plugin doctor after changes. Do not copy 
 
 ## 6. Codex
 
-Keep Windows Codex and WSL Codex as separate installations. Do not symlink `%USERPROFILE%\.codex` to `~/.codex`.
+When Windows Codex is retained, keep it and WSL Codex as separate installations. Do not symlink `%USERPROFILE%\.codex` to `~/.codex`.
 
-The completed WSL environment intentionally grants Codex full automation:
-
-```toml
-approval_policy = "never"
-sandbox_mode = "danger-full-access"
-network_access = "enabled"
-```
-
-This is an explicit workstation policy with unrestricted filesystem and network impact. A bootstrap workflow must show the consequence and obtain the user's decision before applying it.
+Preserve the user's current approval, sandbox, and network policy unless they explicitly request a change. Unrestricted filesystem or network access is a workstation-level security decision, not a migration default.
 
 Provider configuration may include a base URL and model metadata, but secrets belong in private authentication state or environment variables. Protect both files:
 
@@ -199,11 +171,11 @@ chmod 600 ~/.codex/config.toml ~/.codex/auth.json
 codex doctor --summary --ascii --no-color
 ```
 
-The unrestricted-access note in Doctor is expected when this policy is selected; actual warnings or failures still require investigation.
+Review every Doctor warning against the selected policy; actual failures still require investigation.
 
 ## 7. Kiro CLI
 
-Windows Kiro can remain available while WSL Kiro uses its own state under `~/.kiro`.
+Windows Kiro can remain available when the workstation target matrix requires it, while WSL Kiro uses its own state under `~/.kiro`.
 
 Migrate only portable settings:
 
@@ -215,31 +187,7 @@ Migrate only portable settings:
 
 Do not symlink WSL skills, steering, sessions, or executables to a Windows directory. Validate every symlink target with `readlink`.
 
-Example CLI settings:
-
-```json
-{
-  "chat.defaultModel": "claude-opus-4.8",
-  "chat.modelDefaults": {
-    "claude-sonnet-5": {
-      "output_config": { "effort": "max" }
-    },
-    "claude-opus-4.8": {
-      "output_config": { "effort": "xhigh" }
-    }
-  }
-}
-```
-
-The validated permissive rule is:
-
-```yaml
-rules:
-  - capability: all
-    effect: allow
-```
-
-This rule is equivalent to broad local autonomy and must not be enabled silently.
+Migrate model names and effort settings only when the target Kiro version currently supports them. Broad allow rules are equivalent to high local autonomy and must not be enabled silently.
 
 For a native Feishu MCP, record the result of `command -v feishu-mcp-pro` in `~/.kiro/settings/mcp.json`. The path must begin with a Linux directory such as `/home`, never `/mnt/c`.
 
@@ -269,10 +217,13 @@ Run both audits after restarting WSL:
 
 ```bash
 bash scripts/audit-wsl-ai-env.sh
-bash scripts/verify-ai-cli-migration.sh --strict
+bash scripts/verify-ai-cli-migration.sh \
+  --require-native codex \
+  --require-native uv \
+  --expect-absent '<command-approved-for-removal>'
 ```
 
-`--strict` enforces the complete validated workstation profile, including Codex, Kiro, Feishu/Lark, uv, and Docker. Omit it for a partial migration and review missing-tool warnings against the user's chosen target matrix.
+Repeat `--require-native` for every command selected for WSL and `--expect-absent` for every command approved for removal or isolation. The verifier does not impose another workstation's tool matrix.
 
 The desired result is:
 

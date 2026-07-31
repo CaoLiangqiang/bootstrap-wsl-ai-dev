@@ -8,6 +8,17 @@ Consult these sources before changing version-sensitive behavior.
   https://learn.microsoft.com/en-us/windows/wsl/wsl-config
 - Enable and verify systemd in WSL:
   https://learn.microsoft.com/en-us/windows/wsl/systemd
+- WSL command reference, including distribution selection and starting directory:
+  https://learn.microsoft.com/en-us/windows/wsl/basic-commands
+
+## Windows Explorer and Terminal
+
+- Windows Terminal command-line arguments, profiles, directories, and window targeting:
+  https://learn.microsoft.com/en-us/windows/terminal/command-line-arguments
+- Windows Shell shortcut-menu implementation guidance:
+  https://learn.microsoft.com/en-us/windows/win32/shell/context-menu-handlers
+- Windows Shell static verbs and command registration:
+  https://learn.microsoft.com/en-us/windows/win32/shell/context
 
 ## Docker Engine
 
@@ -76,4 +87,4 @@ Consult these sources before changing version-sensitive behavior.
 - NVM repository and installation guidance:
   https://github.com/nvm-sh/nvm
 
-Re-check release support, command flags, fingerprints, and repository instructions when the local tool version differs from the environment described in references/lessons.md.
+Re-check release support, command flags, fingerprints, and repository instructions against current official documentation before changing version-sensitive behavior.

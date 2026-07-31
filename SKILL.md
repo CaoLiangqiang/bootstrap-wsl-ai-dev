@@ -1,6 +1,6 @@
 ---
 name: bootstrap-wsl-ai-dev
-description: Audit, clean, migrate, isolate, and bootstrap an AI development environment on WSL Ubuntu without accidental dependence on Windows-installed tools. Use when Codex needs to classify Windows versus WSL command origins, disable automatic Windows PATH import while preserving explicit interop, inventory or remove Windows AI tools, migrate Claude Code, OpenCode/oh-my-openagent, Codex, Kiro, Feishu/Lark, Node/Bun, or uv into WSL, validate configuration and authentication without exposing secrets, diagnose network or Docker issues, or clean installation artifacts without deleting useful caches or credentials.
+description: Audit, clean, migrate, isolate, and bootstrap an AI development environment on WSL Ubuntu without accidental dependence on Windows-installed tools. Use when Codex needs to classify Windows versus WSL command origins, disable automatic Windows PATH import while preserving explicit interop, add reversible Windows Explorer launchers for WSL or Windows Terminal, inventory or remove Windows AI tools, migrate Claude Code, OpenCode/oh-my-openagent, Codex, Kiro, Feishu/Lark, Node/Bun, or uv into WSL, validate configuration and authentication without exposing secrets, diagnose network or Docker issues, or clean installation artifacts without deleting useful caches or credentials.
 ---
 
 # Bootstrap WSL AI Development
@@ -15,6 +15,7 @@ Build a native WSL Ubuntu toolchain with an audit-first workflow. Treat Windows,
 - Confirm every deletion candidate by path, size, owner, command resolution, and replacement readiness. Preserve projects, SSH keys, auth files, active tool state, and caches that are valuable on a slow network.
 - Use official repositories and documentation for system packages and security-sensitive configuration.
 - Keep Windows writes targeted. Read registry values before editing them, preserve their value type, and never broadly rewrite PATH without showing the effect.
+- Treat the Windows 11 classic context menu as a separate global user-interface choice. Never enable it merely to install Explorer launchers; obtain the user's explicit approval first.
 - Treat PATH isolation and network configuration as independent decisions. Do not modify Clash, proxy, DNS, NAT, mirrored networking, or other network settings unless the user explicitly asks for network work.
 - Never copy personal settings, auth files, steering content, or session history into this repository. Record schemas, redacted examples, permission requirements, and validation commands instead.
 - Use apply_patch for files inside the working repository. For root-owned files, generate a small auditable script and ask the user to run it with sudo.
@@ -52,7 +53,7 @@ Use command -v and type -a to classify each command:
 
 If command output and the Windows registry disagree, treat the current WSL PATH as an old process snapshot. Recheck after wsl --shutdown from Windows PowerShell.
 
-Read references/lessons.md when the audit produces contradictory results or when evaluating cleanup candidates.
+When audit results conflict, distinguish installed state, live command resolution, and stale process state before changing anything. Read references/windows-ai-cleanup.md before evaluating Windows cleanup candidates.
 
 ### 3. Establish the WSL command boundary
 
@@ -77,6 +78,8 @@ Test both the current environment and an explicit proxy:
     bash scripts/check-network.sh --proxy http://127.0.0.1:7897
 
 Compare GitHub, Docker Registry, Docker packages, npm, and Astral endpoints. A Docker Registry HTTP 401 response proves reachability; it is not a failure.
+
+Treat the proxy URL as an example. Discover and confirm the user's actual proxy address before using `--proxy`.
 
 Do not assume that a working curl or apt proxy also configures Docker. The Docker daemon is a systemd service and needs its own proxy configuration.
 
@@ -164,7 +167,11 @@ Do not automatically delete:
 
 Run npm cache verify before considering npm cache deletion. Prefer apt-get clean over autoremove unless package dependency impact has been reviewed.
 
-### 10. Validate the finished environment
+### 10. Add optional Windows Explorer launchers
+
+When the user wants one-click access from Explorer, read references/windows-explorer-wsl.md and start with the read-only status action. Keep launcher installation, administrator elevation, and the global classic-menu choice independent. Never enable elevation, classic mode, or an Explorer restart without explicit approval.
+
+### 11. Validate the finished environment
 
 Confirm:
 
@@ -180,21 +187,21 @@ Confirm:
 - Docker and Compose report versions; Docker is active and enabled.
 - A non-root user can pull and run hello-world.
 - Docker daemon proxy environment is active when required.
-- Kimi, Trae, and other removed tools have no executable, registered install, live process, or surviving data directory.
+- Every tool approved for removal in the target matrix has no executable, registered install, live process, or surviving data directory.
 - Temporary scripts and staged configuration files are removed.
 
 Summarize retained caches and configuration intentionally. Finish with wsl --shutdown when PATH, group, systemd, or Windows registry state must be refreshed.
 
 ## Resource routing
 
-- Read references/lessons.md for the chronological field notes, failure signatures, cleanup decisions, and security guidance distilled from a real migration.
 - Read references/ai-cli-migration.md for the complete Windows/WSL boundary and per-tool Claude, OpenCode, Codex, Kiro, and Feishu migration procedure.
 - Read references/windows-ai-cleanup.md before inventorying or removing Windows AI applications, shims, packages, and residual state.
-- Read references/validated-state-2026-07-16.md for the evidence snapshot and versions from the completed migration; do not treat it as a version lock.
+- Read references/windows-explorer-wsl.md before adding, removing, or troubleshooting Windows Explorer launchers for WSL and Windows Terminal.
 - Read references/sources.md before changing WSL, Docker, GitHub SSH, Corepack, or uv behavior; verify current official guidance if versions have changed.
 - Run scripts/audit-wsl-ai-env.sh for the first and final inventory.
 - Run scripts/audit-windows-ai-tools.ps1 from Windows PowerShell for a read-only Windows inventory.
 - Run scripts/configure-wsl-path-isolation.sh only after the user chooses native WSL command isolation.
+- Run scripts/configure-windows-explorer-wsl.ps1 from Windows PowerShell only after confirming the distribution name, Terminal profile, and Windows 11 context-menu preference.
 - Run scripts/verify-ai-cli-migration.sh after a full WSL restart.
 - Run scripts/check-network.sh before blaming Git, apt, npm, uv, or Docker.
 - Use scripts/install-docker-engine.sh only after reviewing conflicts and obtaining local sudo authentication.

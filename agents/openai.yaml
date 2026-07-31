@@ -1,4 +1,4 @@
 interface:
   display_name: "Bootstrap WSL AI Dev"
-  short_description: "Migrate and isolate native AI CLIs in WSL"
-  default_prompt: "Use $bootstrap-wsl-ai-dev to audit Windows and WSL, migrate approved AI CLIs into Ubuntu, isolate command resolution, and verify the environment without exposing credentials."
+  short_description: "Bootstrap native WSL AI tools and Windows integration"
+  default_prompt: "Use $bootstrap-wsl-ai-dev to audit and bootstrap a native WSL AI environment, including optional Windows Explorer launchers, without exposing credentials."
