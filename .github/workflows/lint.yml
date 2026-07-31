@@ -11,7 +11,7 @@ jobs:
   scripts:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Verify Agent Skill discovery
         run: |
@@ -60,7 +60,7 @@ jobs:
   windows-explorer-wsl:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Parse PowerShell scripts
         shell: powershell
