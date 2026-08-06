@@ -1,11 +1,17 @@
 ---
 name: bootstrap-wsl-ai-dev
-description: Audit, clean, migrate, isolate, and bootstrap an AI development environment on WSL Ubuntu without accidental dependence on Windows-installed tools. Use when Codex needs to classify Windows versus WSL command origins, disable automatic Windows PATH import while preserving explicit interop, add reversible Windows Explorer launchers for WSL or Windows Terminal, inventory or remove Windows AI tools, migrate Claude Code, OpenCode/oh-my-openagent, Codex, Kiro, Feishu/Lark, Node/Bun, or uv into WSL, validate configuration and authentication without exposing secrets, diagnose network or Docker issues, or clean installation artifacts without deleting useful caches or credentials.
+description: Build and validate the Phase 1 WSL foundation for native AI development, including WSL command isolation, systemd, default NAT networking, native tools, Git/AI CLI clients, optional Docker, Windows cleanup, and Explorer integration. Use when Codex needs the base environment before invoking $bootstrap-wsl-server, or when it must audit and migrate WSL AI tooling without exposing credentials or taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
 ---
 
 # Bootstrap WSL AI Development
 
 Build a native WSL Ubuntu toolchain with an audit-first workflow. Treat Windows, WSL, system services, and the current shell as separate state layers.
+
+## Foundation and extension boundary
+
+This Skill is the Phase 1 foundation. When the user also asks to make the computer a LAN SSH server, finish the foundation checks and invoke `$bootstrap-wsl-server` for Phase 2. Do not implement Windows portproxy, LAN firewall rules, `sshd_config`, `authorized_keys`, or the server workbench in this Skill.
+
+Read `references/wsl-server-extension-contract.md` before handing off. It defines the shared `/etc/wsl.conf` keys, NAT/DNS invariants, and ownership boundaries.
 
 ## Safety rules
 
@@ -62,7 +68,11 @@ When the target is a fully native WSL command-line environment, review and run:
     bash scripts/configure-wsl-path-isolation.sh --check
     sudo bash scripts/configure-wsl-path-isolation.sh
 
-This sets only `[interop] appendWindowsPath=false`. It preserves WSL interop and all networking sections. Afterward, have the user run `wsl --shutdown` from Windows PowerShell and re-open WSL.
+When systemd or the default user is not already configured, run:
+
+    sudo bash scripts/configure-wsl-systemd.sh --user USER
+
+The two scripts preserve unrelated sections. PATH isolation sets only `[interop] appendWindowsPath=false`; the foundation script sets only `[boot] systemd=true` and `[user] default=USER`. Neither edits networking sections. Afterward, have the user run `wsl --shutdown` from Windows PowerShell and re-open WSL.
 
 Do not simulate completion with a sanitized child environment. Verify the real restarted shell with:
 
@@ -130,7 +140,7 @@ Important tool-specific boundaries:
 
 ### 8. Install Docker Engine
 
-Require systemd. If it is unavailable, enable it in /etc/wsl.conf and have the user restart WSL before proceeding.
+Require systemd. If it is unavailable, use `scripts/configure-wsl-systemd.sh` and have the user restart WSL before proceeding.
 
 Review and run:
 
@@ -190,6 +200,8 @@ Confirm:
 - Every tool approved for removal in the target matrix has no executable, registered install, live process, or surviving data directory.
 - Temporary scripts and staged configuration files are removed.
 
+If the server extension is requested, hand off only after these foundation checks pass. Do not repeat the AI migration or Docker configuration in the server phase.
+
 Summarize retained caches and configuration intentionally. Finish with wsl --shutdown when PATH, group, systemd, or Windows registry state must be refreshed.
 
 ## Resource routing
@@ -201,8 +213,10 @@ Summarize retained caches and configuration intentionally. Finish with wsl --shu
 - Run scripts/audit-wsl-ai-env.sh for the first and final inventory.
 - Run scripts/audit-windows-ai-tools.ps1 from Windows PowerShell for a read-only Windows inventory.
 - Run scripts/configure-wsl-path-isolation.sh only after the user chooses native WSL command isolation.
+- Run scripts/configure-wsl-systemd.sh before Docker or the server extension when systemd/default-user keys are missing.
 - Run scripts/configure-windows-explorer-wsl.ps1 from Windows PowerShell only after confirming the distribution name, Terminal profile, and Windows 11 context-menu preference.
 - Run scripts/verify-ai-cli-migration.sh after a full WSL restart.
 - Run scripts/check-network.sh before blaming Git, apt, npm, uv, or Docker.
 - Use scripts/install-docker-engine.sh only after reviewing conflicts and obtaining local sudo authentication.
 - Use scripts/configure-docker-proxy.sh only when the daemon needs an explicit proxy or its current proxy is stale.
+- Read references/wsl-server-extension-contract.md before invoking `$bootstrap-wsl-server`.

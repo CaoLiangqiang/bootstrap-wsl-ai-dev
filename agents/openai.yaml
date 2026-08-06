@@ -1,4 +1,4 @@
 interface:
   display_name: "Bootstrap WSL AI Dev"
-  short_description: "Bootstrap native WSL AI tools and Windows integration"
-  default_prompt: "Use $bootstrap-wsl-ai-dev to audit and bootstrap a native WSL AI environment, including optional Windows Explorer launchers, without exposing credentials."
+  short_description: "Build the WSL foundation before server extensions"
+  default_prompt: "Use $bootstrap-wsl-ai-dev to audit and configure the WSL foundation before invoking $bootstrap-wsl-server."

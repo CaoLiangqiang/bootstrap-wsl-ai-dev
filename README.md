@@ -30,6 +30,22 @@ Use $bootstrap-wsl-ai-dev to audit my Windows and WSL AI development environment
 
 The workflow asks for explicit decisions before changing PATH isolation, Windows registry state, packages, credentials, Docker, or networking.
 
+## Server extension handoff
+
+This repository is the Phase 1 foundation. If the target also needs to act as a
+LAN SSH server, complete this repository's audit, WSL systemd/default-user,
+network, and native-tool checks first, then invoke the companion Phase 2 skill:
+
+```text
+Use $bootstrap-wsl-server to add the WSL LAN SSH server extension and generate the host and client manuals.
+```
+
+The server extension owns `sshd`, `authorized_keys`, Windows `portproxy`, the
+Private/LocalSubnet firewall rule, startup task, workbench, and manuals. This
+repository does not expose LAN ports or rewrite SSH server policy. Read
+[`references/wsl-server-extension-contract.md`](references/wsl-server-extension-contract.md)
+before handoff.
+
 ## What it delivers
 
 | Capability | Concrete outcome |
