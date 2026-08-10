@@ -2,6 +2,13 @@
 
 All notable user-facing changes are recorded here. This project follows Semantic Versioning for immutable Git tags and GitHub Releases.
 
+## [0.2.1] - 2026-08-10
+
+### Fixed
+
+- Isolated the Starship adapter fixture from real sibling Skill installations so release tests behave consistently in source checkouts and installed consumer layouts.
+- Made the documented and CI Bash test loops stop immediately when any individual test fails.
+
 ## [0.2.0] - 2026-08-10
 
 ### Added
