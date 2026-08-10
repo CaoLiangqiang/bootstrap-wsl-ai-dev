@@ -1,4 +1,4 @@
 interface:
   display_name: "Bootstrap WSL AI Dev"
-  short_description: "Build the WSL foundation before server extensions"
-  default_prompt: "Use $bootstrap-wsl-ai-dev to audit and configure the WSL foundation before invoking $bootstrap-wsl-server."
+  short_description: "Build a native WSL foundation with optional terminal theming"
+  default_prompt: "Use $bootstrap-wsl-ai-dev to establish a safe native WSL foundation, then configure optional Starship theming or hand off server work as requested."

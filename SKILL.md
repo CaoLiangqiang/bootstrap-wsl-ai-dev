@@ -1,6 +1,6 @@
 ---
 name: bootstrap-wsl-ai-dev
-description: Build and validate the Phase 1 WSL foundation for native AI development, including WSL command isolation, systemd, default NAT networking, native tools, Git/AI CLI clients, optional Docker, Windows cleanup, and Explorer integration. Use when Codex needs the base environment before invoking $bootstrap-wsl-server, or when it must audit and migrate WSL AI tooling without exposing credentials or taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
+description: Build, audit, and validate the Phase 1 WSL foundation for native AI development, including a reversible user startup baseline, Linux workspace and PATH setup, optional cross-terminal Starship Catppuccin configuration, explicit Windows wrappers, command isolation, systemd, default NAT networking, native tools, optional Docker, cleanup, and Explorer integration. Use when Codex needs the base environment before invoking $bootstrap-wsl-server, or when it must migrate WSL AI tooling without exposing credentials or taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
 ---
 
 # Bootstrap WSL AI Development
@@ -23,10 +23,39 @@ Read `references/wsl-server-extension-contract.md` before handing off. It define
 - Keep Windows writes targeted. Read registry values before editing them, preserve their value type, and never broadly rewrite PATH without showing the effect.
 - Treat the Windows 11 classic context menu as a separate global user-interface choice. Never enable it merely to install Explorer launchers; obtain the user's explicit approval first.
 - Treat PATH isolation and network configuration as independent decisions. Do not modify Clash, proxy, DNS, NAT, mirrored networking, or other network settings unless the user explicitly asks for network work.
+- Keep Starship prompt setup opt-in and delegate to the independent `setup-starship-catppuccin` Skill. Do not duplicate or silently install its fonts, theme, or Windows configuration.
 - Never copy personal settings, auth files, steering content, or session history into this repository. Record schemas, redacted examples, permission requirements, and validation commands instead.
 - Use apply_patch for files inside the working repository. For root-owned files, generate a small auditable script and ask the user to run it with sudo.
 
 ## Workflow
+
+### 0. Establish a user startup baseline
+
+For a new WSL environment or before tool migration, run the read-only baseline audit from the intended Linux workspace:
+
+    bash scripts/audit-wsl-startup.sh --workspace "$PWD"
+
+Use `--strict` only when a detected failure must block the workflow. Do not source user rc files, expose Git credential-helper values, SSH identities, or keys, or treat warnings as failures.
+
+After review, use only the user-level installer:
+
+    bash scripts/configure-wsl-startup.sh --check
+    bash scripts/configure-wsl-startup.sh --install
+
+It manages `~/src`, `~/.local/bin`, and clearly marked blocks in `.profile` and `.bashrc`. It does not install packages or write locale, timezone, Git, SSH, `/etc/wsl.conf`, or `.wslconfig` settings. Use its `--remove` operation to remove only the marked blocks.
+
+For deliberate Windows file-opening or clipboard actions after PATH isolation, use the opt-in wrappers:
+
+    bash scripts/install-windows-interop-wrappers.sh --check
+    bash scripts/install-windows-interop-wrappers.sh --install
+
+They use absolute mounted Windows executable paths and do not re-import Windows PATH. Read `references/wsl-startup-baseline.md` before changing host or system settings.
+
+For an optional Catppuccin Powerline prompt across WSL and Windows, read `references/starship-terminal-prompt.md` and run the adapter in check mode first:
+
+    bash scripts/configure-starship-prompt.sh --check
+
+Run `--install` only after the user selects WSL-only or explicitly approves `--with-windows`. The adapter requires the independent `setup-starship-catppuccin` Skill and does not vendor its fonts or implementation.
 
 ### 1. Establish the target state
 
@@ -70,6 +99,7 @@ When the target is a fully native WSL command-line environment, review and run:
 
 When systemd or the default user is not already configured, run:
 
+    bash scripts/configure-wsl-systemd.sh --check --user USER
     sudo bash scripts/configure-wsl-systemd.sh --user USER
 
 The two scripts preserve unrelated sections. PATH isolation sets only `[interop] appendWindowsPath=false`; the foundation script sets only `[boot] systemd=true` and `[user] default=USER`. Neither edits networking sections. Afterward, have the user run `wsl --shutdown` from Windows PowerShell and re-open WSL.
@@ -209,8 +239,14 @@ Summarize retained caches and configuration intentionally. Finish with wsl --shu
 - Read references/ai-cli-migration.md for the complete Windows/WSL boundary and per-tool Claude, OpenCode, Codex, Kiro, and Feishu migration procedure.
 - Read references/windows-ai-cleanup.md before inventorying or removing Windows AI applications, shims, packages, and residual state.
 - Read references/windows-explorer-wsl.md before adding, removing, or troubleshooting Windows Explorer launchers for WSL and Windows Terminal.
+- Read references/wsl-startup-baseline.md for new WSL initialization, user startup blocks, explicit interop wrappers, `.wslconfig`, and restart scope.
+- Read references/starship-terminal-prompt.md before auditing, installing, removing, or troubleshooting the optional Starship prompt integration.
 - Read references/sources.md before changing WSL, Docker, GitHub SSH, Corepack, or uv behavior; verify current official guidance if versions have changed.
 - Run scripts/audit-wsl-ai-env.sh for the first and final inventory.
+- Run scripts/audit-wsl-startup.sh before configuring a WSL startup baseline.
+- Run scripts/configure-wsl-startup.sh only for user-owned workspace and rc-file startup setup.
+- Run scripts/install-windows-interop-wrappers.sh only when explicit Explorer or clipboard interop is wanted.
+- Run scripts/configure-starship-prompt.sh only after resolving the independent `setup-starship-catppuccin` Skill and confirming whether Windows changes are approved.
 - Run scripts/audit-windows-ai-tools.ps1 from Windows PowerShell for a read-only Windows inventory.
 - Run scripts/configure-wsl-path-isolation.sh only after the user chooses native WSL command isolation.
 - Run scripts/configure-wsl-systemd.sh before Docker or the server extension when systemd/default-user keys are missing.

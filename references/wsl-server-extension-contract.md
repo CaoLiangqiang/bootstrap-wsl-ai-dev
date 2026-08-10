@@ -11,6 +11,13 @@
 - Git/GitLab/GitHub client configuration, AI CLI authentication, Docker installation and Docker-specific proxy decisions.
 - Windows AI cleanup and Explorer integration.
 
+Inspect the distro keys without elevation, then apply only after review:
+
+```bash
+bash scripts/configure-wsl-systemd.sh --check --user WSL_USER
+sudo bash scripts/configure-wsl-systemd.sh --user WSL_USER
+```
+
 ## Handoff contract
 
 Before invoking `bootstrap-wsl-server`, record and verify:
@@ -44,4 +51,3 @@ Before invoking `bootstrap-wsl-server`, record and verify:
 | `~/.ssh/config` and client keys | AI foundation/user | Read only |
 | `~/.ssh/authorized_keys` and `sshd_config.d/99-wsl-server.conf` | Server extension | Manage server authentication only |
 | Docker service and proxy | AI foundation | Observe only |
-

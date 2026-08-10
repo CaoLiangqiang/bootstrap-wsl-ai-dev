@@ -64,7 +64,7 @@ Install both launchers while leaving the Windows 11 context-menu style unchanged
   -TerminalProfile Ubuntu
 ```
 
-The install action is idempotent. It installs both launcher types for both a directory background and a selected folder; selecting only one launcher type is not a `v0.1.0` feature. It does not change the WSL default user, request elevation, or modify Windows Terminal settings. Before writing, it snapshots each affected registry subtree. If a write fails, it restores the pre-run state before returning the error. If Windows itself cannot import a rollback snapshot, the error reports the retained `.reg` backup path for manual recovery while continuing to restore the other subtrees.
+The install action is idempotent. It installs both launcher types for both a directory background and a selected folder; selecting only one launcher type is not supported. It does not change the WSL default user, request elevation, or modify Windows Terminal settings. Before writing, it snapshots each affected registry subtree. If a write fails, it restores the pre-run state before returning the error. If Windows itself cannot import a rollback snapshot, the error reports the retained `.reg` backup path for manual recovery while continuing to restore the other subtrees.
 
 Use `-WhatIf` before applying a change when reviewing a different workstation:
 

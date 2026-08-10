@@ -16,9 +16,23 @@ EOF
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --user) target_user="${2:-}"; shift 2 ;;
+    --user)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        usage >&2
+        exit 2
+      fi
+      target_user="$2"
+      shift 2
+      ;;
     --check) check_only=1; shift ;;
-    --file) config_file="${2:-}"; shift 2 ;;
+    --file)
+      if [ "$#" -lt 2 ] || [ -z "$2" ]; then
+        usage >&2
+        exit 2
+      fi
+      config_file="$2"
+      shift 2
+      ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 2 ;;
   esac
@@ -28,7 +42,7 @@ if [[ ! "$target_user" =~ ^[a-z_][a-z0-9_-]*$ ]]; then
   printf 'Invalid or missing Linux user: %s\n' "$target_user" >&2
   exit 2
 fi
-if [ "$config_file" = /etc/wsl.conf ] && [ "$(id -u)" -ne 0 ]; then
+if [ "$check_only" -eq 0 ] && [ "$config_file" = /etc/wsl.conf ] && [ "$(id -u)" -ne 0 ]; then
   printf 'Run with sudo. Enter the password only in your terminal.\n' >&2
   exit 1
 fi

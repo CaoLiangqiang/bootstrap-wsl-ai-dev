@@ -10,6 +10,10 @@ Consult these sources before changing version-sensitive behavior.
   https://learn.microsoft.com/en-us/windows/wsl/systemd
 - WSL command reference, including distribution selection and starting directory:
   https://learn.microsoft.com/en-us/windows/wsl/basic-commands
+- WSL file-storage guidance, including Linux filesystem versus mounted Windows drives:
+  https://learn.microsoft.com/en-us/windows/wsl/filesystems
+- WSL troubleshooting and restart guidance:
+  https://learn.microsoft.com/en-us/windows/wsl/troubleshooting
 
 ## Windows Explorer and Terminal
 
@@ -19,6 +23,15 @@ Consult these sources before changing version-sensitive behavior.
   https://learn.microsoft.com/en-us/windows/win32/shell/context-menu-handlers
 - Windows Shell static verbs and command registration:
   https://learn.microsoft.com/en-us/windows/win32/shell/context
+
+## Optional Starship prompt
+
+- Starship installation and shell setup:
+  https://starship.rs/guide/
+- Catppuccin Powerline preset:
+  https://starship.rs/presets/catppuccin-powerline
+- Nerd Fonts patched Cascadia Code and bundled font license:
+  https://github.com/ryanoasis/nerd-fonts/tree/master/patched-fonts/CascadiaCode
 
 ## Docker Engine
 
