@@ -2,10 +2,14 @@
 set -Eeuo pipefail
 
 repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-wrapper="$repo_root/scripts/configure-starship-prompt.sh"
+source_wrapper="$repo_root/scripts/configure-starship-prompt.sh"
 test_dir="$(mktemp -d "${TMPDIR:-/tmp}/bootstrap-starship-prompt-test.XXXXXX")"
 cleanup() { rm -rf "$test_dir"; }
 trap cleanup EXIT
+
+wrapper="$test_dir/bootstrap-wsl-ai-dev/scripts/configure-starship-prompt.sh"
+mkdir -p "$(dirname "$wrapper")"
+cp "$source_wrapper" "$wrapper"
 
 fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 expect_failure() { if "$@" >/dev/null 2>&1; then fail "expected failure: $*"; fi; }

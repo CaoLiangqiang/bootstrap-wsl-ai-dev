@@ -31,7 +31,7 @@ jobs:
       - name: Test Bash scripts
         run: |
           for test_file in tests/test-*.sh; do
-            bash "$test_file"
+            bash "$test_file" || exit 1
           done
 
       - name: Test migration verifier interface

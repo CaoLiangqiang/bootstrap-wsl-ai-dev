@@ -106,7 +106,7 @@ The Windows 11 classic context-menu override is a separate explicit opt-in. It u
 - Windows Terminal only when the optional Terminal launcher is selected.
 - The independently released `setup-starship-catppuccin` `v0.1.0` Skill when the optional prompt add-on is selected.
 
-Run the skill from the Linux filesystem inside WSL. `v0.2.0` supports Windows 11, WSL 2, Ubuntu, Bash, and Windows PowerShell 5.1. Other distributions, Windows versions, shells, and terminal hosts may work but are not release-qualified.
+Run the skill from the Linux filesystem inside WSL. `v0.2.1` supports Windows 11, WSL 2, Ubuntu, Bash, and Windows PowerShell 5.1. Other distributions, Windows versions, shells, and terminal hosts may work but are not release-qualified.
 
 ## Other installation methods
 
@@ -181,7 +181,7 @@ Start a new Codex turn after installation or update so the current skill state i
 ```bash
 bash -n scripts/*.sh tests/*.sh
 shellcheck -x scripts/*.sh tests/*.sh
-for test_file in tests/test-*.sh; do bash "$test_file"; done
+for test_file in tests/test-*.sh; do bash "$test_file" || exit 1; done
 npx --yes skills@1.5.21 add . --list
 python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" .
 ```
