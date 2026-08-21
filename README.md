@@ -143,6 +143,15 @@ git -C "${CODEX_HOME:-$HOME/.codex}/skills/bootstrap-wsl-ai-dev" pull --ff-only
 
 Do not overwrite an existing destination that contains local changes. Inspect it with `git status` first.
 
+When this repository is maintained as a source working tree by AI Build Up, keep it outside Skill discovery directories and link that source into the user scope:
+
+```bash
+bash scripts/configure-user-skill.sh --check
+bash scripts/configure-user-skill.sh --install
+```
+
+The installer uses `~/.agents/skills/bootstrap-wsl-ai-dev`, migrates a legacy `~/.codex/skills/bootstrap-wsl-ai-dev` installation, backs up any replaced target under `~/.local/state/ai-build-up/backups`, and remains idempotent.
+
 </details>
 
 Preview the skill without installing it:
