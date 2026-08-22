@@ -2,6 +2,26 @@
 
 All notable user-facing changes are recorded here. This project follows Semantic Versioning for immutable Git tags and GitHub Releases.
 
+## [0.4.0] - 2026-08-22
+
+### Added
+
+- Optional `Ubuntu Native` Windows Terminal color scheme with an aubergine background, Ubuntu orange tab, and complete Tango-style ANSI palette.
+- Per-user Windows Terminal JSON Fragment installer with status, idempotent install, guarded removal, UTF-8 validation, and exact profile-GUID targeting.
+- Windows PowerShell 5.1 regression coverage for Terminal Fragment ownership, collision handling, settings preservation, encoding, and cleanup.
+
+### Changed
+
+- Added `Both`, `Direct`, and `WindowsTerminal` Explorer launcher modes while retaining `Both` as the backward-compatible default.
+- Made launcher-mode switches remove only unselected project-owned verbs and preserve unowned or modified registry entries.
+- Expanded Explorer documentation and CI to cover the recommended single Windows Terminal entry with optional Ubuntu-native theming.
+
+### Safety
+
+- Keep the Terminal theme, launcher selection, and global Windows 11 classic-menu override as independent opt-ins.
+- Apply the theme through a removable per-user Fragment instead of rewriting the user's complete Windows Terminal `settings.json`.
+- Refuse to overwrite or delete a foreign or modified Fragment and preserve unrelated files in the Fragment directory.
+
 ## [0.3.0] - 2026-08-22
 
 ### Added

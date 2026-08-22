@@ -41,7 +41,7 @@ The release is one repository-native Skill with explicit ownership boundaries:
 | WSL user layer | Reversible scripts create `~/src`, add an owned `~/.local/bin` PATH block, and optionally install `win-open` and `win-clip` wrappers that call absolute Windows paths. |
 | WSL distro layer | Separate root-reviewed scripts manage only `[interop] appendWindowsPath=false`, `[boot] systemd=true`, and `[user] default=USER`; unrelated and network sections are preserved. |
 | Native toolchain | References and scripts cover Git/SSH, AI CLI migration, network diagnosis, Docker Engine, transactional daemon proxy configuration, and post-restart verification. |
-| Windows user layer | Optional PowerShell operations inventory Windows AI tools, registered PATH entries, and owned Explorer verbs under `HKCU` with collision checks and rollback, without UAC. |
+| Windows user layer | Optional PowerShell operations inventory Windows AI tools and registered PATH entries, select owned Explorer launchers, and add a removable Ubuntu-native Terminal theme without UAC. |
 | Prompt add-on | Delegate an optional Starship Catppuccin Powerline setup across WSL and Windows without duplicating fonts or configuration logic. |
 | Verification | Linux fixture tests, Windows PowerShell registry tests, ShellCheck, Skill discovery, and GitHub Actions validate the same repository content shipped to consumers. |
 
@@ -85,14 +85,25 @@ The optional adapter delegates to the independently released `setup-starship-cat
 
 ## Optional Explorer integration
 
-The Windows-side add-on creates owned per-user shell verbs under `HKCU:\Software\Classes` for both directory backgrounds and selected folders:
+The Windows-side add-on creates owned per-user shell verbs under `HKCU:\Software\Classes` for both directory backgrounds and selected folders. `-LauncherMode Both` preserves the original two-entry behavior; `Direct` and `WindowsTerminal` install only the chosen host:
 
 | Entry | Launch path | Result |
 | --- | --- | --- |
 | Open in WSL | `wsl.exe -d <distribution> --cd <directory>` | Enters the selected WSL distribution directly. |
-| Open in Windows Terminal | `wt.exe -p <profile> -d <directory>` | Opens the directory with the selected Terminal profile and appearance. |
+| Open in Windows Terminal | `wt.exe -p <profile> -d <directory>` | Opens a new window in the selected Terminal profile. |
 
-Installation validates `wsl.exe`, the exact distribution, `wt.exe`, and the exact Terminal profile before writing. Registry updates use ownership checks, collision protection, and rollback snapshots. The feature does not require administrator elevation and does not weaken WSL PATH isolation.
+For the native Ubuntu-style experience, an independent script installs a per-user Windows Terminal JSON Fragment with an aubergine background and Ubuntu orange tab for the selected profile. It does not rewrite `settings.json` or change other profiles. Both scripts provide read-only status and guarded removal; Explorer registry updates additionally use collision protection and rollback snapshots.
+
+```powershell
+.\scripts\configure-windows-explorer-wsl.ps1 `
+  -Action Install -Distribution Ubuntu -TerminalProfile Ubuntu `
+  -LauncherMode WindowsTerminal
+
+.\scripts\configure-windows-terminal-ubuntu-theme.ps1 `
+  -Action Install -TerminalProfile Ubuntu
+```
+
+The feature does not require administrator elevation and does not weaken WSL PATH isolation.
 
 The Windows 11 classic context-menu override is a separate explicit opt-in. It uses undocumented compatibility behavior and may stop working after an operating-system update. See [Explorer integration](references/windows-explorer-wsl.md) for status, installation, rollback, and recovery details.
 
@@ -103,10 +114,10 @@ The Windows 11 classic context-menu override is a separate explicit opt-in. It u
 - Codex with Agent Skills support.
 - Git for manual installation, or Node.js `22.20.0` or later with npm for `npx skills` installation and validation.
 - Windows PowerShell 5.1 or later for Windows inventory and Explorer integration.
-- Windows Terminal only when the optional Terminal launcher is selected.
+- Windows Terminal only when the optional Terminal launcher or Ubuntu-native theme is selected.
 - The independently released `setup-starship-catppuccin` `v0.1.0` Skill when the optional prompt add-on is selected.
 
-Run the skill from the Linux filesystem inside WSL. `v0.3.0` supports Windows 11, WSL 2, Ubuntu, Bash, and Windows PowerShell 5.1. Other distributions, Windows versions, shells, and terminal hosts may work but are not release-qualified.
+Run the skill from the Linux filesystem inside WSL. `v0.4.0` supports Windows 11, WSL 2, Ubuntu, Bash, Windows PowerShell 5.1, and Windows Terminal for the optional themed launcher. Other distributions, Windows versions, shells, and terminal hosts may work but are not release-qualified.
 
 ## Other installation methods
 
@@ -178,7 +189,7 @@ Start a new Codex turn after installation or update so the current skill state i
 | [`scripts/`](scripts) | Deterministic Bash and PowerShell operations. |
 | [AI CLI migration](references/ai-cli-migration.md) | Native toolchain and per-tool migration guidance. |
 | [Windows cleanup](references/windows-ai-cleanup.md) | Read-only inventory and per-workstation target matrix. |
-| [Explorer integration](references/windows-explorer-wsl.md) | Launcher installation, status, rollback, and Windows 11 behavior. |
+| [Explorer integration](references/windows-explorer-wsl.md) | Launcher selection, Ubuntu-native Terminal theming, status, rollback, and Windows 11 behavior. |
 | [WSL startup baseline](references/wsl-startup-baseline.md) | User-only startup setup, explicit interop wrappers, rollback, and deferred host settings. |
 | [Starship prompt integration](references/starship-terminal-prompt.md) | Optional adapter, standalone Skill discovery, scope, and restart behavior. |
 | [Server extension contract](references/wsl-server-extension-contract.md) | Phase 1/Phase 2 ownership and handoff checks. |
@@ -195,7 +206,7 @@ npx --yes skills@1.5.21 add . --list
 python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-creator/scripts/quick_validate.py" .
 ```
 
-The Skill Creator check is available when Codex's system skills are installed. GitHub Actions also parses every PowerShell script and runs the Explorer integration tests against disposable Windows registry roots.
+The Skill Creator check is available when Codex's system skills are installed. GitHub Actions also parses every PowerShell script, tests Explorer integration against disposable Windows registry roots, and tests Terminal Fragment behavior in temporary directories.
 
 ## License
 
