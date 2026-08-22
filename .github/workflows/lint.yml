@@ -87,9 +87,12 @@ jobs:
             exit 1
           }
 
-      - name: Test Explorer to WSL integration
+      - name: Test Windows integrations
         shell: powershell
-        run: ./tests/test-configure-windows-explorer-wsl.ps1
+        run: |
+          Get-ChildItem -Path "$PWD/tests" -Filter 'test-*.ps1' | ForEach-Object {
+            & $_.FullName
+          }
 
       - name: Test Windows audit target matrix
         shell: powershell

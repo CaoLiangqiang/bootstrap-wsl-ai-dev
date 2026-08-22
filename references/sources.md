@@ -19,6 +19,12 @@ Consult these sources before changing version-sensitive behavior.
 
 - Windows Terminal command-line arguments, profiles, directories, and window targeting:
   https://learn.microsoft.com/en-us/windows/terminal/command-line-arguments
+- Windows Terminal per-user JSON Fragment extensions and profile updates:
+  https://learn.microsoft.com/en-us/windows/terminal/json-fragment-extensions
+- Windows Terminal custom color schemes:
+  https://learn.microsoft.com/en-us/windows/terminal/customize-settings/color-schemes
+- Windows Terminal per-profile appearance settings:
+  https://learn.microsoft.com/en-us/windows/terminal/customize-settings/profile-appearance
 - Windows Shell shortcut-menu implementation guidance:
   https://learn.microsoft.com/en-us/windows/win32/shell/context-menu-handlers
 - Windows Shell static verbs and command registration:

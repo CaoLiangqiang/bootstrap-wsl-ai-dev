@@ -8,6 +8,9 @@ param(
 
     [string]$TerminalProfile = 'Ubuntu',
 
+    [ValidateSet('Both', 'Direct', 'WindowsTerminal')]
+    [string]$LauncherMode = 'Both',
+
     [ValidateSet('Keep', 'Enable', 'Disable')]
     [string]$ClassicContextMenu = 'Keep',
 
@@ -207,10 +210,6 @@ function Assert-InstallPrerequisites {
         return
     }
 
-    if (-not (Test-Path -LiteralPath $WindowsTerminalExecutable -PathType Leaf)) {
-        throw "Windows Terminal executable was not found at '$WindowsTerminalExecutable'. Install Windows Terminal or pass -WindowsTerminalExecutable with an existing wt.exe path."
-    }
-
     $distributions = @(Get-WslDistributions)
     $distributionFound = $false
     foreach ($candidate in $distributions) {
@@ -224,17 +223,23 @@ function Assert-InstallPrerequisites {
         throw "WSL distribution '$Distribution' was not found. Available distributions: $available. Pass -Distribution with one of these exact names."
     }
 
-    $profiles = @(Get-WindowsTerminalProfileNames)
-    $profileFound = $false
-    foreach ($candidate in $profiles) {
-        if ([string]$candidate -ceq $TerminalProfile) {
-            $profileFound = $true
-            break
+    if ($LauncherMode -in @('Both', 'WindowsTerminal')) {
+        if (-not (Test-Path -LiteralPath $WindowsTerminalExecutable -PathType Leaf)) {
+            throw "Windows Terminal executable was not found at '$WindowsTerminalExecutable'. Install Windows Terminal or pass -WindowsTerminalExecutable with an existing wt.exe path."
         }
-    }
-    if (-not $profileFound) {
-        $available = if ($profiles.Count -gt 0) { $profiles -join ', ' } else { '(none)' }
-        throw "Windows Terminal profile '$TerminalProfile' was not found in '$WindowsTerminalSettingsPath'. Available profiles: $available. Pass -TerminalProfile with one of these exact names."
+
+        $profiles = @(Get-WindowsTerminalProfileNames)
+        $profileFound = $false
+        foreach ($candidate in $profiles) {
+            if ([string]$candidate -ceq $TerminalProfile) {
+                $profileFound = $true
+                break
+            }
+        }
+        if (-not $profileFound) {
+            $available = if ($profiles.Count -gt 0) { $profiles -join ', ' } else { '(none)' }
+            throw "Windows Terminal profile '$TerminalProfile' was not found in '$WindowsTerminalSettingsPath'. Available profiles: $available. Pass -TerminalProfile with one of these exact names."
+        }
     }
 }
 
@@ -252,14 +257,15 @@ function Get-VerbDefinitions {
         @{ Path = 'Directory\shell'; Target = '%1' }
     )
     $verbs = @(
-        @{ Name = 'WSLUbuntu'; Label = "Open $Distribution in WSL"; Command = $wslCommand; Icon = $WslExecutable },
-        @{ Name = 'WSLUbuntuWindowsTerminal'; Label = "Open $Distribution in Windows Terminal"; Command = $terminalCommand; Icon = $WindowsTerminalExecutable }
+        @{ Launcher = 'Direct'; Name = 'WSLUbuntu'; Label = "Open $Distribution in WSL"; Command = $wslCommand; Icon = $WslExecutable },
+        @{ Launcher = 'WindowsTerminal'; Name = 'WSLUbuntuWindowsTerminal'; Label = "Open $Distribution in Windows Terminal"; Command = $terminalCommand; Icon = $WindowsTerminalExecutable }
     )
 
     $definitions = @()
     foreach ($location in $locations) {
         foreach ($verb in $verbs) {
             $definitions += [PSCustomObject]@{
+                Launcher = $verb.Launcher
                 Path = Join-RegistryKey $RegistryClassesRoot ($location.Path + '\' + $verb.Name)
                 Label = $verb.Label
                 Command = ($verb.Command -f $location.Target)
@@ -465,7 +471,11 @@ function Install-Verbs {
     Assert-InstallPrerequisites
 
     $definitions = @(Get-VerbDefinitions)
-    foreach ($definition in $definitions) {
+    $selectedDefinitions = @($definitions | Where-Object {
+        $LauncherMode -eq 'Both' -or $_.Launcher -eq $LauncherMode
+    })
+    $selectedPaths = @($selectedDefinitions | ForEach-Object { $_.Path })
+    foreach ($definition in $selectedDefinitions) {
         if ((Test-Path -LiteralPath $definition.Path) -and -not (Test-OwnedKey $definition.Path)) {
             if (-not $Force) {
                 throw "Refusing to overwrite unowned Explorer verb '$($definition.Path)'. Re-run with -Force only after reviewing it."
@@ -480,6 +490,17 @@ function Install-Verbs {
     $script:registryWriteCount = 0
     Invoke-RegistryTransaction -Paths @($definitions | ForEach-Object { $_.Path }) -Operation {
         foreach ($definition in $definitions) {
+            if ($selectedPaths -notcontains $definition.Path) {
+                if ((Test-Path -LiteralPath $definition.Path) -and (Test-OwnedKey $definition.Path)) {
+                    if (-not (Test-VerbKeyContainsOnlyVerbData $definition.Path)) {
+                        Write-Warning "Owned Explorer verb '$($definition.Path)' contains unexpected values or subkeys; leaving it unchanged."
+                    } elseif ($PSCmdlet.ShouldProcess($definition.Path, 'Remove unselected owned Explorer verb')) {
+                        Invoke-RegistryWrite { Remove-Item -LiteralPath $definition.Path -Recurse -Force }
+                    }
+                }
+                continue
+            }
+
             $wasPresent = Test-Path -LiteralPath $definition.Path
             if ($PSCmdlet.ShouldProcess($definition.Path, 'Install Explorer verb')) {
                 if (-not $wasPresent) {
@@ -612,6 +633,8 @@ function Get-Status {
     $rows = foreach ($definition in @(Get-VerbDefinitions)) {
         [PSCustomObject]@{
             Type = 'ExplorerVerb'
+            Launcher = $definition.Launcher
+            Selected = $LauncherMode -eq 'Both' -or $definition.Launcher -eq $LauncherMode
             Path = $definition.Path
             Owned = Test-OwnedKey $definition.Path
             Present = Test-Path -LiteralPath $definition.Path
@@ -626,6 +649,8 @@ function Get-Status {
     $classicPath = Get-ClassicContextMenuPath
     $rows += [PSCustomObject]@{
         Type = 'ClassicContextMenu'
+        Launcher = $null
+        Selected = $null
         Path = $classicPath
         Owned = Test-OwnedKey $classicPath
         Present = Test-Path -LiteralPath $classicPath

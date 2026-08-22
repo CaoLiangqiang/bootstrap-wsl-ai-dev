@@ -62,6 +62,7 @@ function Invoke-MenuScript {
         [string]$Action = 'Status',
         [string]$Distribution = 'Ubuntu',
         [string]$TerminalProfile = 'Ubuntu',
+        [string]$LauncherMode = 'Both',
         [string]$ClassicContextMenu = 'Keep',
         [string]$WslPath = $wslExecutable,
         [string]$TerminalPath = $terminalExecutable,
@@ -75,6 +76,7 @@ function Invoke-MenuScript {
     )
 
     & $scriptPath -Action $Action -Distribution $Distribution -TerminalProfile $TerminalProfile `
+        -LauncherMode $LauncherMode `
         -ClassicContextMenu $ClassicContextMenu -RegistryClassesRoot $testRoot `
         -WslExecutable $WslPath -WindowsTerminalExecutable $TerminalPath `
         -WindowsTerminalSettingsPath $TerminalSettingsPath -FailAfterVerbCount $FailAfterVerbCount `
@@ -236,6 +238,39 @@ try {
         Assert-True (-not (Test-Path -LiteralPath ($target.Path + '\WSLUbuntu'))) 'owned WSL verb was not removed'
         Assert-True (-not (Test-Path -LiteralPath ($target.Path + '\WSLUbuntuWindowsTerminal'))) 'owned Windows Terminal verb was not removed'
     }
+
+    Invoke-MenuScript -Action Install -LauncherMode WindowsTerminal
+    foreach ($target in $targets) {
+        Assert-True (-not (Test-Path -LiteralPath ($target.Path + '\WSLUbuntu'))) 'WindowsTerminal mode installed a direct WSL verb'
+        Assert-True (Test-Path -LiteralPath ($target.Path + '\WSLUbuntuWindowsTerminal')) 'WindowsTerminal mode did not install its selected verb'
+    }
+    $terminalOnlyStatus = @(Invoke-MenuScript -Action Status -LauncherMode WindowsTerminal)
+    $selectedTerminalRows = @($terminalOnlyStatus | Where-Object { $_.Type -eq 'ExplorerVerb' -and $_.Selected })
+    Assert-True ($selectedTerminalRows.Count -eq 2) 'WindowsTerminal status did not select exactly two target locations'
+    Assert-True (@($selectedTerminalRows | Where-Object { $_.Launcher -cne 'WindowsTerminal' }).Count -eq 0) 'WindowsTerminal status selected another launcher type'
+
+    Invoke-MenuScript -Action Install -LauncherMode Direct `
+        -TerminalPath (Join-Path $fixtureRoot 'missing-wt.exe') `
+        -TerminalSettingsPath (Join-Path $fixtureRoot 'missing-settings.json')
+    foreach ($target in $targets) {
+        Assert-True (Test-Path -LiteralPath ($target.Path + '\WSLUbuntu')) 'Direct mode did not install its selected verb'
+        Assert-True (-not (Test-Path -LiteralPath ($target.Path + '\WSLUbuntuWindowsTerminal'))) 'Direct mode did not remove an unselected owned Terminal verb'
+    }
+
+    Invoke-MenuScript -Action Install -LauncherMode WindowsTerminal
+    foreach ($target in $targets) {
+        Assert-True (-not (Test-Path -LiteralPath ($target.Path + '\WSLUbuntu'))) 'WindowsTerminal mode did not remove an unselected owned direct verb'
+        Assert-True (Test-Path -LiteralPath ($target.Path + '\WSLUbuntuWindowsTerminal')) 'WindowsTerminal mode lost its selected verb after switching modes'
+    }
+    Invoke-MenuScript -Action Remove
+
+    $unownedDirectPath = $testRoot + '\Directory\Background\shell\WSLUbuntu'
+    New-StandardUnownedVerb -Path $unownedDirectPath
+    Invoke-MenuScript -Action Install -LauncherMode WindowsTerminal
+    Assert-Equal 'legacy command' (Get-Item -LiteralPath ($unownedDirectPath + '\command')).GetValue('') 'WindowsTerminal mode changed an unselected unowned direct verb'
+    Invoke-MenuScript -Action Remove
+    Assert-True (Test-Path -LiteralPath $unownedDirectPath) 'remove deleted an unowned direct verb'
+    Clear-TestRegistryRoot
 
     Assert-Throws -ExpectedMessage 'Injected failure after 2 Explorer verb writes' -Message 'injected install failure did not occur' -ScriptBlock {
         Invoke-MenuScript -Action Install -FailAfterVerbCount 2

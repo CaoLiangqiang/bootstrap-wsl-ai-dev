@@ -1,6 +1,6 @@
 ---
 name: bootstrap-wsl-ai-dev
-description: Build, audit, and validate the Phase 1 WSL foundation for native AI development without accidental dependence on Windows-installed tools. Includes a reversible user startup baseline, Linux workspace and PATH setup, optional cross-terminal Starship Catppuccin configuration, explicit Windows wrappers, command isolation, systemd, default NAT networking, native AI tool migration, optional Docker, cleanup, and Explorer integration. Use when Codex needs to classify Windows versus WSL command origins, distinguish agent-sandbox failures from host failures, reconcile proxy or Docker issues, or prepare the base environment before invoking $bootstrap-wsl-server without taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
+description: Build, audit, and validate the Phase 1 WSL foundation for native AI development without accidental dependence on Windows-installed tools. Includes a reversible user startup baseline, Linux workspace and PATH setup, optional cross-terminal Starship Catppuccin configuration, explicit Windows wrappers, command isolation, systemd, default NAT networking, native AI tool migration, optional Docker, cleanup, Explorer integration, and an optional Ubuntu-native Windows Terminal theme. Use when Codex needs to classify Windows versus WSL command origins, distinguish agent-sandbox failures from host failures, reconcile proxy or Docker issues, or prepare the base environment before invoking $bootstrap-wsl-server without taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
 ---
 
 # Bootstrap WSL AI Development
@@ -225,7 +225,9 @@ Run npm cache verify before considering npm cache deletion. Prefer apt-get clean
 
 ### 10. Add optional Windows Explorer launchers
 
-When the user wants one-click access from Explorer, read references/windows-explorer-wsl.md and start with the read-only status action. Keep launcher installation, administrator elevation, and the global classic-menu choice independent. Never enable elevation, classic mode, or an Explorer restart without explicit approval.
+When the user wants one-click access from Explorer, read references/windows-explorer-wsl.md and start with the read-only status actions. Confirm whether they want direct WSL, Windows Terminal, or both; keep that choice independent from the optional Ubuntu-native Terminal theme and the global classic-menu behavior.
+
+Use `scripts/configure-windows-explorer-wsl.ps1` for launcher selection. Use `scripts/configure-windows-terminal-ubuntu-theme.ps1` only after the user opts into profile theming. The theme installer owns one per-user JSON Fragment and does not rewrite the user's full Terminal settings file. Never enable elevation, classic mode, or an Explorer restart without explicit approval.
 
 ### 11. Validate the finished environment
 
@@ -254,7 +256,7 @@ Summarize retained caches and configuration intentionally. Finish with wsl --shu
 
 - Read references/ai-cli-migration.md for the complete Windows/WSL boundary and per-tool Claude, OpenCode, Codex, Kiro, and Feishu migration procedure.
 - Read references/windows-ai-cleanup.md before inventorying or removing Windows AI applications, shims, packages, and residual state.
-- Read references/windows-explorer-wsl.md before adding, removing, or troubleshooting Windows Explorer launchers for WSL and Windows Terminal.
+- Read references/windows-explorer-wsl.md before adding, removing, or troubleshooting Windows Explorer launchers or the Ubuntu-native Windows Terminal theme.
 - Read references/wsl-startup-baseline.md for new WSL initialization, user startup blocks, explicit interop wrappers, `.wslconfig`, and restart scope.
 - Read references/starship-terminal-prompt.md before auditing, installing, removing, or troubleshooting the optional Starship prompt integration.
 - Read references/sources.md before changing WSL, Docker, GitHub SSH, Corepack, or uv behavior; verify current official guidance if versions have changed.
@@ -267,6 +269,7 @@ Summarize retained caches and configuration intentionally. Finish with wsl --shu
 - Run scripts/configure-wsl-path-isolation.sh only after the user chooses native WSL command isolation.
 - Run scripts/configure-wsl-systemd.sh before Docker or the server extension when systemd/default-user keys are missing.
 - Run scripts/configure-windows-explorer-wsl.ps1 from Windows PowerShell only after confirming the distribution name, Terminal profile, and Windows 11 context-menu preference.
+- Run scripts/configure-windows-terminal-ubuntu-theme.ps1 from Windows PowerShell only after confirming the exact Terminal profile and explicit theme preference.
 - Run scripts/verify-ai-cli-migration.sh after a full WSL restart.
 - Run scripts/check-network.sh before blaming Git, apt, npm, uv, or Docker.
 - Use scripts/install-docker-engine.sh only after reviewing conflicts and obtaining local sudo authentication.
