@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 set -uo pipefail
+execution_sandboxed=0
+
+commands=(
+  git gh ssh python python3 pip pip3 uv uvx
+  node npm npx corepack pnpm yarn bun
+  codex kiro-cli claude opencode aider
+  feishu feishu-mcp-pro lark-cli ast-grep docker
+)
 
 section() {
   printf '\n== %s ==\n' "$1"
@@ -18,9 +26,14 @@ first_line() {
 command_origin() {
   case "$1" in
     /mnt/[a-zA-Z]/*) printf 'Windows' ;;
-    /usr/*|/bin/*|/sbin/*|/home/*|/snap/*) printf 'WSL' ;;
+    /usr/*|/bin/*|/sbin/*|/home/*|/opt/*|/snap/*) printf 'WSL' ;;
     *) printf 'review' ;;
   esac
+}
+
+redact_proxy() {
+  printf '%s' "$1" \
+    | sed -E 's#([[:alpha:]][[:alnum:]+.-]*://)[^/@[:space:]]+@#\1***@#g'
 }
 
 section "Platform"
@@ -30,7 +43,20 @@ if [ -r /etc/os-release ]; then
 fi
 printf 'Kernel: %s\n' "$(uname -r)"
 printf 'WSL distro: %s\n' "$(printenv WSL_DISTRO_NAME 2>/dev/null || printf 'not detected')"
-printf 'PID 1: %s\n' "$(ps -p 1 -o comm= 2>/dev/null | xargs)"
+pid1="$(ps -p 1 -o comm= 2>/dev/null | xargs)"
+printf 'PID 1: %s\n' "$pid1"
+case "$pid1" in
+  bwrap|codex|sandbox-exec)
+    execution_sandboxed=1
+    ;;
+esac
+if [ -n "${CODEX_PERMISSION_PROFILE+x}" ] \
+    || [ -n "${CODEX_SANDBOX_NETWORK_DISABLED+x}" ]; then
+  execution_sandboxed=1
+fi
+if [ "$execution_sandboxed" -eq 1 ]; then
+  printf 'Execution context: likely agent sandbox; host-only checks may be blocked\n'
+fi
 if [ -r /etc/wsl.conf ]; then
   printf '%s\n' '/etc/wsl.conf:'
   sed -n '1,120p' /etc/wsl.conf
@@ -38,11 +64,7 @@ fi
 
 section "Command origins"
 printf '%-18s %-8s %-65s %s\n' 'Command' 'Origin' 'Path' 'Version'
-for cmd in \
-  git gh ssh python python3 pip pip3 uv uvx \
-  node npm npx corepack pnpm yarn bun \
-  codex kiro-cli claude opencode aider \
-  feishu feishu-mcp-pro lark-cli ast-grep docker; do
+for cmd in "${commands[@]}"; do
   path="$(command -v "$cmd" 2>/dev/null || true)"
   [ -n "$path" ] || continue
   case "$cmd" in
@@ -61,6 +83,22 @@ for cmd in \
   esac
   printf '%-18s %-8s %-65s %s\n' "$cmd" "$(command_origin "$path")" "$path" "$version"
 done
+
+section "Windows fallback command candidates"
+fallback_count=0
+for cmd in "${commands[@]}"; do
+  primary="$(command -v "$cmd" 2>/dev/null || true)"
+  while IFS= read -r candidate; do
+    [ -n "$candidate" ] || continue
+    [ "$candidate" != "$primary" ] || continue
+    if [ "$(command_origin "$candidate")" = "Windows" ]; then
+      fallback_count=$((fallback_count + 1))
+      printf '%-18s %s\n' "$cmd" "$candidate"
+    fi
+  done < <(type -a -p "$cmd" 2>/dev/null | awk '!seen[$0]++')
+done
+[ "$fallback_count" -gt 0 ] \
+  || printf 'No WSL command has a secondary Windows executable candidate\n'
 
 section "Windows PATH entries visible in this shell"
 windows_count=0
@@ -89,6 +127,8 @@ fi
 if [ -x /mnt/c/Windows/System32/cmd.exe ] \
     && (cd /mnt/c && /mnt/c/Windows/System32/cmd.exe /d /c "exit 0") >/dev/null 2>&1; then
   printf 'Explicit Windows interop by absolute path: working\n'
+elif [ "$execution_sandboxed" -eq 1 ]; then
+  printf 'Explicit Windows interop by absolute path: likely blocked by agent sandbox\n'
 else
   printf 'Explicit Windows interop by absolute path: unavailable\n'
 fi
@@ -109,8 +149,16 @@ printf 'This is an inventory only; visible commands are review candidates, not a
 
 section "Proxy variables"
 for name in HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY http_proxy https_proxy all_proxy no_proxy; do
-  if printenv "$name" >/dev/null 2>&1; then
-    printf '%-12s set\n' "$name"
+  value="$(printenv "$name" 2>/dev/null || true)"
+  if [ -n "$value" ]; then
+    case "$name" in
+      NO_PROXY|no_proxy)
+        printf '%-12s set\n' "$name"
+        ;;
+      *)
+        printf '%-12s %s\n' "$name" "$(redact_proxy "$value")"
+        ;;
+    esac
   else
     printf '%-12s unset\n' "$name"
   fi
@@ -157,10 +205,21 @@ section "Docker"
 if command -v docker >/dev/null 2>&1; then
   docker --version 2>&1 || true
   docker compose version 2>&1 || true
-  printf 'Service active: %s\n' "$(systemctl is-active docker 2>/dev/null || printf 'unknown')"
-  printf 'Service enabled: %s\n' "$(systemctl is-enabled docker 2>/dev/null || printf 'unknown')"
-  if timeout 10 docker info >/dev/null 2>&1; then
+  if [ "$execution_sandboxed" -eq 1 ]; then
+    printf 'Service state: repeat outside the likely agent sandbox\n'
+  else
+    printf 'Service active: %s\n' "$(systemctl is-active docker 2>/dev/null || printf 'unknown')"
+    printf 'Service enabled: %s\n' "$(systemctl is-enabled docker 2>/dev/null || printf 'unknown')"
+  fi
+  if docker_proxy="$(timeout 10 docker info --format '{{.HTTPProxy}}' 2>/dev/null)"; then
     printf 'Non-root daemon access: yes\n'
+    if [ -n "$docker_proxy" ]; then
+      printf 'Effective daemon proxy: %s\n' "$(redact_proxy "$docker_proxy")"
+    else
+      printf 'Effective daemon proxy: none\n'
+    fi
+  elif [ "$execution_sandboxed" -eq 1 ]; then
+    printf 'Non-root daemon access: may be blocked by agent sandbox; repeat on the host\n'
   else
     printf 'Non-root daemon access: no or unavailable in this process\n'
   fi

@@ -1,6 +1,6 @@
 ---
 name: bootstrap-wsl-ai-dev
-description: Build, audit, and validate the Phase 1 WSL foundation for native AI development, including a reversible user startup baseline, Linux workspace and PATH setup, optional cross-terminal Starship Catppuccin configuration, explicit Windows wrappers, command isolation, systemd, default NAT networking, native tools, optional Docker, cleanup, and Explorer integration. Use when Codex needs the base environment before invoking $bootstrap-wsl-server, or when it must migrate WSL AI tooling without exposing credentials or taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
+description: Build, audit, and validate the Phase 1 WSL foundation for native AI development without accidental dependence on Windows-installed tools. Includes a reversible user startup baseline, Linux workspace and PATH setup, optional cross-terminal Starship Catppuccin configuration, explicit Windows wrappers, command isolation, systemd, default NAT networking, native AI tool migration, optional Docker, cleanup, and Explorer integration. Use when Codex needs to classify Windows versus WSL command origins, distinguish agent-sandbox failures from host failures, reconcile proxy or Docker issues, or prepare the base environment before invoking $bootstrap-wsl-server without taking ownership of LAN SSH server ports, firewall rules, sshd policy, or the server workbench.
 ---
 
 # Bootstrap WSL AI Development
@@ -24,6 +24,7 @@ Read `references/wsl-server-extension-contract.md` before handing off. It define
 - Treat the Windows 11 classic context menu as a separate global user-interface choice. Never enable it merely to install Explorer launchers; obtain the user's explicit approval first.
 - Treat PATH isolation and network configuration as independent decisions. Do not modify Clash, proxy, DNS, NAT, mirrored networking, or other network settings unless the user explicitly asks for network work.
 - Keep Starship prompt setup opt-in and delegate to the independent `setup-starship-catppuccin` Skill. Do not duplicate or silently install its fonts, theme, or Windows configuration.
+- Treat a sandbox launcher as PID 1, Codex sandbox markers, socket `Operation not permitted`, and blocked Windows interop as possible agent-sandbox evidence. No single heuristic is universal; repeat host-only checks outside the sandbox before changing the workstation.
 - Never copy personal settings, auth files, steering content, or session history into this repository. Record schemas, redacted examples, permission requirements, and validation commands instead.
 - Use apply_patch for files inside the working repository. For root-owned files, generate a small auditable script and ask the user to run it with sudo.
 
@@ -80,7 +81,7 @@ For the Windows side, run from Windows PowerShell:
 
     .\scripts\audit-windows-ai-tools.ps1
 
-Use command -v and type -a to classify each command:
+Use command -v and type -a to classify both the primary command and every fallback candidate:
 
 - /usr, /bin, /home, or a WSL-managed version directory: WSL-native.
 - /mnt/c, /mnt/d, or another DrvFs mount: Windows executable.
@@ -104,7 +105,7 @@ When systemd or the default user is not already configured, run:
 
 The two scripts preserve unrelated sections. PATH isolation sets only `[interop] appendWindowsPath=false`; the foundation script sets only `[boot] systemd=true` and `[user] default=USER`. Neither edits networking sections. Afterward, have the user run `wsl --shutdown` from Windows PowerShell and re-open WSL.
 
-Do not simulate completion with a sanitized child environment. Verify the real restarted shell with:
+Do not simulate completion with a sanitized child environment. If the audit reports a likely agent sandbox or host sockets are blocked, leave the sandbox or ask the user to run the verification in a normal WSL terminal. Verify the real restarted shell with:
 
     bash scripts/verify-ai-cli-migration.sh
 
@@ -112,16 +113,21 @@ Read references/ai-cli-migration.md for the boundary model and references/window
 
 ### 4. Diagnose the network before installing
 
-Test both the current environment and an explicit proxy:
+Test the current environment, a direct curl path, and any explicit proxy under consideration:
 
     bash scripts/check-network.sh
-    bash scripts/check-network.sh --proxy http://127.0.0.1:7897
+    bash scripts/check-network.sh --direct
+    bash scripts/check-network.sh --proxy "$PROXY_URL"
 
 Compare GitHub, Docker Registry, Docker packages, npm, and Astral endpoints. A Docker Registry HTTP 401 response proves reachability; it is not a failure.
 
 Treat the proxy URL as an example. Discover and confirm the user's actual proxy address before using `--proxy`.
 
-Do not assume that a working curl or apt proxy also configures Docker. The Docker daemon is a systemd service and needs its own proxy configuration.
+The script returns nonzero when any endpoint fails. An `Operation not permitted` socket error inside an agent sandbox does not prove the host network is broken.
+
+`--direct` bypasses curl proxy selection, but it cannot prove that Windows TUN or other transparent routing is absent. Use a real Docker pull to validate the daemon path.
+
+Do not assume that a working curl or apt proxy proves Docker daemon connectivity. The Docker daemon is a systemd service and may need its own proxy, but a static drop-in can become stale when the Windows proxy port changes. Prefer no explicit daemon proxy when a real daemon pull works through transparent networking.
 
 Skip this section when the current network is already healthy and the user did not request proxy changes.
 
@@ -178,11 +184,21 @@ Review and run:
 
 The script installs Docker from Docker's official Ubuntu repository, enables the service, and adds the invoking user to the docker group. Do not test non-root Docker access in an agent process that started before the group change. Use a new login shell or a new WSL terminal.
 
-If image pulls time out while curl through the proxy works, review and run:
+Inspect the effective daemon proxy without printing credentials:
 
-    sudo bash scripts/configure-docker-proxy.sh --proxy http://127.0.0.1:7897 --test
+    bash scripts/audit-wsl-ai-env.sh
+    docker info --format 'HTTP={{if .HTTPProxy}}set{{else}}unset{{end}} HTTPS={{if .HTTPSProxy}}set{{else}}unset{{end}}'
 
-Keep the daemon proxy address synchronized with the Windows proxy port.
+When a fixed proxy is stale, first test whether Docker works without it:
+
+    sudo bash scripts/configure-docker-proxy.sh --clear --test
+
+Keep the cleared state when the daemon pull succeeds. If the daemon cannot reach registries without an explicit proxy, test the current proxy URL and apply it:
+
+    bash scripts/check-network.sh --proxy "$PROXY_URL"
+    sudo bash scripts/configure-docker-proxy.sh --proxy "$PROXY_URL" --test
+
+Do not hardcode a workstation-specific port in the skill. Both set and clear modes restore the previous drop-in when validation fails.
 
 ### 9. Clean only verified artifacts
 
@@ -226,7 +242,7 @@ Confirm:
 - GitHub SSH and gh API authentication work.
 - Docker and Compose report versions; Docker is active and enabled.
 - A non-root user can pull and run hello-world.
-- Docker daemon proxy environment is active when required.
+- Docker can pull through either a validated transparent path or an active daemon proxy; no stale fixed port remains.
 - Every tool approved for removal in the target matrix has no executable, registered install, live process, or surviving data directory.
 - Temporary scripts and staged configuration files are removed.
 
@@ -254,5 +270,5 @@ Summarize retained caches and configuration intentionally. Finish with wsl --shu
 - Run scripts/verify-ai-cli-migration.sh after a full WSL restart.
 - Run scripts/check-network.sh before blaming Git, apt, npm, uv, or Docker.
 - Use scripts/install-docker-engine.sh only after reviewing conflicts and obtaining local sudo authentication.
-- Use scripts/configure-docker-proxy.sh only when the daemon needs an explicit proxy or its current proxy is stale.
+- Use scripts/configure-docker-proxy.sh only when the daemon needs an explicit proxy or its current proxy is stale; use it to transactionally set or clear the proxy and validate the resulting daemon path.
 - Read references/wsl-server-extension-contract.md before invoking `$bootstrap-wsl-server`.

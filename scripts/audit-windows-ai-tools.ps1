@@ -95,6 +95,24 @@ $commandRows = foreach ($name in $allCommandNames) {
 }
 $commandRows | Sort-Object Policy, Name, Path | Format-Table -AutoSize
 
+Write-Host "`n== Registered Windows PATH entries =="
+$pathRows = @(foreach ($scope in @('User', 'Machine')) {
+    $pathValue = [Environment]::GetEnvironmentVariable('Path', $scope)
+    foreach ($entry in @($pathValue -split ';' | Where-Object { $_ })) {
+        $expandedPath = [Environment]::ExpandEnvironmentVariables($entry)
+        [PSCustomObject]@{
+            Scope  = $scope
+            State  = if (Test-Path -LiteralPath $expandedPath) { 'exists' } else { 'missing' }
+            Path   = $entry
+        }
+    }
+})
+if ($pathRows.Count -gt 0) {
+    $pathRows | Sort-Object Scope, Path | Format-Table -AutoSize
+} else {
+    Write-Host 'No registered PATH entries found.'
+}
+
 Write-Host "`n== Matching Appx packages =="
 $packagePattern = 'Codex|Kiro|ChatGPT|Claude|OpenCode|Gemini|Paseo|Happy|Uipro|Crush'
 $appxRows = @(Get-AppxPackage | Where-Object {

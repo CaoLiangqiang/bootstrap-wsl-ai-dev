@@ -3,6 +3,8 @@ set -uo pipefail
 
 mode="environment"
 proxy_url=""
+failures=0
+sandbox_blocks=0
 
 usage() {
   printf '%s\n' \
@@ -71,7 +73,13 @@ probe() {
 
   if [ "$status" -ne 0 ]; then
     printf '%-18s FAIL curl=%s %s\n' "$label" "$status" "$result"
-    return
+    failures=$((failures + 1))
+    case "$result" in
+      *'Operation not permitted'*|*'failed to open socket'*)
+        sandbox_blocks=$((sandbox_blocks + 1))
+        ;;
+    esac
+    return 0
   fi
 
   code="$(printf '%s' "$result" | cut -d ' ' -f1)"
@@ -81,6 +89,7 @@ probe() {
       ;;
     *)
       verdict="HTTP?"
+      failures=$((failures + 1))
       ;;
   esac
   printf '%-18s %-5s %s\n' "$label" "$verdict" "$result"
@@ -95,3 +104,10 @@ probe 'npm Registry' 'https://registry.npmjs.org/' '200'
 probe 'Astral' 'https://astral.sh/' '200'
 
 printf '\nDocker Registry 401 means the network path is healthy but authentication was not supplied.\n'
+if [ "$sandbox_blocks" -gt 0 ]; then
+  printf 'Sandbox-like socket restrictions blocked %s probe(s); repeat outside the agent sandbox before diagnosing the host network.\n' "$sandbox_blocks"
+fi
+printf 'Result: %s failed endpoint(s)\n' "$failures"
+if [ "$failures" -gt 0 ]; then
+  exit 1
+fi
