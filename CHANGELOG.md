@@ -2,6 +2,28 @@
 
 All notable user-facing changes are recorded here. This project follows Semantic Versioning for immutable Git tags and GitHub Releases.
 
+## [0.3.0] - 2026-08-22
+
+### Added
+
+- Source-linked user Skill installation that migrates legacy Codex Skill copies into the shared `~/.agents/skills` scope with backups and idempotent checks.
+- Windows user and machine PATH registration auditing, including missing targets and secondary Windows executable candidates hidden behind native WSL commands.
+- Configuration-path validation that permits shared projects and data under `/mnt/<drive>` while rejecting Windows command settings, executable paths, and npm shims.
+- Regression coverage for network exit status, configuration-path classification, and transactional Docker daemon proxy changes.
+
+### Changed
+
+- Made network diagnostics return a nonzero status when any endpoint fails and distinguish sandbox-like socket restrictions from host-network evidence.
+- Made Docker daemon proxy management transactional: it can set or clear a fixed proxy, preflight the requested endpoint, verify the effective daemon state, exercise a real pull and run, and restore the previous drop-in after failure or interruption.
+- Expanded WSL audits and migration verification with credential-redacted proxy reporting, effective Docker proxy inspection, fallback command discovery, and conservative multi-signal agent-sandbox detection.
+- Updated the Skill workflow and README to document direct versus proxied checks, stale Docker proxy recovery, sandbox limitations, and the `v0.3.0` support statement.
+
+### Safety
+
+- Preserve unrelated configuration and project/data paths while rejecting only cross-environment command execution paths.
+- Restore the prior Docker proxy drop-in and test-image state whenever validation fails.
+- Treat sandbox detection as advisory evidence and require host-only verification before changing workstation networking, interop, permissions, or ownership.
+
 ## [0.2.1] - 2026-08-10
 
 ### Fixed

@@ -40,8 +40,8 @@ The release is one repository-native Skill with explicit ownership boundaries:
 | Read-only audit | Bash and PowerShell inventories classify workspace placement, command origins, shell state, Windows applications, network readiness, and migration results without printing credentials. |
 | WSL user layer | Reversible scripts create `~/src`, add an owned `~/.local/bin` PATH block, and optionally install `win-open` and `win-clip` wrappers that call absolute Windows paths. |
 | WSL distro layer | Separate root-reviewed scripts manage only `[interop] appendWindowsPath=false`, `[boot] systemd=true`, and `[user] default=USER`; unrelated and network sections are preserved. |
-| Native toolchain | References and scripts cover Git/SSH, AI CLI migration, network diagnosis, Docker Engine, daemon proxy configuration, and post-restart verification. |
-| Windows user layer | Optional PowerShell operations inventory Windows AI tools and manage owned Explorer verbs under `HKCU` with collision checks and rollback, without UAC. |
+| Native toolchain | References and scripts cover Git/SSH, AI CLI migration, network diagnosis, Docker Engine, transactional daemon proxy configuration, and post-restart verification. |
+| Windows user layer | Optional PowerShell operations inventory Windows AI tools, registered PATH entries, and owned Explorer verbs under `HKCU` with collision checks and rollback, without UAC. |
 | Prompt add-on | Delegate an optional Starship Catppuccin Powerline setup across WSL and Windows without duplicating fonts or configuration logic. |
 | Verification | Linux fixture tests, Windows PowerShell registry tests, ShellCheck, Skill discovery, and GitHub Actions validate the same repository content shipped to consumers. |
 
@@ -106,7 +106,7 @@ The Windows 11 classic context-menu override is a separate explicit opt-in. It u
 - Windows Terminal only when the optional Terminal launcher is selected.
 - The independently released `setup-starship-catppuccin` `v0.1.0` Skill when the optional prompt add-on is selected.
 
-Run the skill from the Linux filesystem inside WSL. `v0.2.1` supports Windows 11, WSL 2, Ubuntu, Bash, and Windows PowerShell 5.1. Other distributions, Windows versions, shells, and terminal hosts may work but are not release-qualified.
+Run the skill from the Linux filesystem inside WSL. `v0.3.0` supports Windows 11, WSL 2, Ubuntu, Bash, and Windows PowerShell 5.1. Other distributions, Windows versions, shells, and terminal hosts may work but are not release-qualified.
 
 ## Other installation methods
 

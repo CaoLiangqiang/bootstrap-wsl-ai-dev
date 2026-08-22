@@ -7,6 +7,8 @@ warnings=0
 failures=0
 required_commands=()
 expected_absent_commands=(cmd.exe powershell.exe pwsh.exe explorer.exe)
+execution_sandboxed=0
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 usage() {
   printf '%s\n' \
@@ -98,7 +100,21 @@ else
   fail "this verifier is intended for WSL"
 fi
 
-if bash "$(dirname "$0")/configure-wsl-path-isolation.sh" --check >/dev/null 2>&1; then
+pid1="$(ps -p 1 -o comm= 2>/dev/null | xargs)"
+case "$pid1" in
+  bwrap|codex|sandbox-exec)
+    execution_sandboxed=1
+    ;;
+esac
+if [ -n "${CODEX_PERMISSION_PROFILE+x}" ] \
+    || [ -n "${CODEX_SANDBOX_NETWORK_DISABLED+x}" ]; then
+  execution_sandboxed=1
+fi
+if [ "$execution_sandboxed" -eq 1 ]; then
+  warn "likely agent sandbox detected; repeat host-only checks outside the sandbox"
+fi
+
+if bash "$script_dir/configure-wsl-path-isolation.sh" --check >/dev/null 2>&1; then
   pass "/etc/wsl.conf disables automatic Windows PATH import"
 else
   fail "/etc/wsl.conf needs [interop] appendWindowsPath=false"
@@ -119,6 +135,8 @@ fi
 if [ -x /mnt/c/Windows/System32/cmd.exe ]; then
   if (cd /mnt/c && /mnt/c/Windows/System32/cmd.exe /d /c "exit 0") >/dev/null 2>&1; then
     pass "explicit Windows interop still works by absolute path"
+  elif [ "$execution_sandboxed" -eq 1 ]; then
+    warn "explicit Windows interop may be blocked by the agent sandbox; repeat on the host"
   else
     warn "cmd.exe exists but explicit WSL interop failed"
   fi
@@ -189,8 +207,8 @@ for file in "${config_files[@]}"; do
       ;;
   esac
 
-  if grep -Eiq '(/mnt/[a-z]/|[a-z]:\\+)' "$file" 2>/dev/null; then
-    fail "$file contains a Windows path; review it without printing secrets"
+  if ! bash "$script_dir/check-config-windows-paths.sh" "$file" >/dev/null 2>&1; then
+    fail "$file contains a Windows command or executable path; review it without printing secrets"
   fi
 done
 
@@ -218,7 +236,10 @@ if command -v claude >/dev/null 2>&1; then
   fi
 fi
 
-if [ "$run_doctors" -eq 1 ] && command -v codex >/dev/null 2>&1; then
+if [ "$run_doctors" -eq 1 ] && command -v codex >/dev/null 2>&1 \
+    && [ "$execution_sandboxed" -eq 1 ]; then
+  warn "Codex Doctor host checks skipped inside a likely agent sandbox"
+elif [ "$run_doctors" -eq 1 ] && command -v codex >/dev/null 2>&1; then
   doctor_output="$(mktemp "${TMPDIR:-/tmp}/codex-doctor.XXXXXX")"
   if timeout 60 codex doctor --summary --ascii --no-color > "$doctor_output" 2>&1 \
       && grep -Eq '0 fail([[:space:]]|$)' "$doctor_output"; then
